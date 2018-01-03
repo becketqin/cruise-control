@@ -18,8 +18,10 @@ import java.util.Set;
 public class ExecutionTaskTracker {
   // Dead tasks indicate cancelled/killed executions affecting the original state before the balancing action execution.
   private final Map<BalancingAction, Set<ExecutionTask>> _deadTasks;
-  // Aborted tasks indicate tasks stopped due to (1) cancelled balancing actions not affecting the state before the
-  // execution of balancing action or (2) deletion of topic partitions for which the balancing action was in progress.
+  // Aborting tasks due to (1) cancelled balancing actions not affecting the state before the execution of balancing 
+  // action.
+  private final Map<BalancingAction, Set<ExecutionTask>> _abortingTasks;
+  // Tasks that have been successfully aborted.
   private final Map<BalancingAction, Set<ExecutionTask>> _abortedTasks;
   // Tasks in progress indicate the ongoing balancing action.
   private final Map<BalancingAction, Set<ExecutionTask>> _inProgressTasks;
@@ -28,22 +30,27 @@ public class ExecutionTaskTracker {
 
   ExecutionTaskTracker() {
     _deadTasks = new HashMap<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _deadTasks.put(balancingAction, new HashSet<>());
     }
 
+    _abortingTasks = new HashMap<>();
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
+      _abortingTasks.put(balancingAction, new HashSet<>());
+    }
+
     _abortedTasks = new HashMap<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _abortedTasks.put(balancingAction, new HashSet<>());
     }
 
     _inProgressTasks = new HashMap<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _inProgressTasks.put(balancingAction, new HashSet<>());
     }
 
     _pendingProposals = new HashMap<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _pendingProposals.put(balancingAction, new HashSet<>());
     }
   }
@@ -55,11 +62,16 @@ public class ExecutionTaskTracker {
    * @return The set of dead tasks for the given balancing action.
    */
   public Set<ExecutionTask> deadTasksFor(BalancingAction balancingAction) {
-    Set<ExecutionTask> deadTasks = _deadTasks.get(balancingAction);
-    if (deadTasks == null) {
-      throw new IllegalStateException(String.format("Unrecognized balancing action: %s.", balancingAction));
-    }
-    return deadTasks;
+    return _deadTasks.get(balancingAction);
+  }
+
+  /**
+   * 
+   * @param balancingAction
+   * @return
+   */
+  public Set<ExecutionTask> abortingTasksFor(BalancingAction balancingAction) {
+    return _abortingTasks.get(balancingAction);
   }
 
   /**
@@ -69,11 +81,7 @@ public class ExecutionTaskTracker {
    * @return The set of aborted tasks for the given balancing action.
    */
   public Set<ExecutionTask> abortedTasksFor(BalancingAction balancingAction) {
-    Set<ExecutionTask> abortedTasks = _abortedTasks.get(balancingAction);
-    if (abortedTasks == null) {
-      throw new IllegalStateException(String.format("Unrecognized balancing action: %s.", balancingAction));
-    }
-    return abortedTasks;
+    return _abortedTasks.get(balancingAction);
   }
 
   /**
@@ -83,11 +91,7 @@ public class ExecutionTaskTracker {
    * @return The set of in progress tasks for the given balancing action.
    */
   public Set<ExecutionTask> inProgressTasksFor(BalancingAction balancingAction) {
-    Set<ExecutionTask> inProgressTasks = _inProgressTasks.get(balancingAction);
-    if (inProgressTasks == null) {
-      throw new IllegalStateException(String.format("Unrecognized balancing action: %s.", balancingAction));
-    }
-    return inProgressTasks;
+    return _inProgressTasks.get(balancingAction);
   }
 
   /**
@@ -97,23 +101,20 @@ public class ExecutionTaskTracker {
    * @return The set of pending proposals for the given balancing action.
    */
   public Set<BalancingProposal> pendingProposalsFor(BalancingAction balancingAction) {
-    Set<BalancingProposal> pendingProposals = _pendingProposals.get(balancingAction);
-    if (pendingProposals == null) {
-      throw new IllegalStateException(String.format("Unrecognized balancing action: %s.", balancingAction));
-    }
-    return pendingProposals;
+    return _pendingProposals.get(balancingAction);
   }
 
   /**
    * Check if there is any task in progress.
    */
   public boolean hasTaskInProgress() {
-    int numInProgressTasks = 0;
-    for (BalancingAction balancingAction : BalancingAction.values()) {
-      numInProgressTasks += _inProgressTasks.get(balancingAction).size();
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
+      if (!_inProgressTasks.get(balancingAction).isEmpty()) {
+        return true;
+      }
     }
 
-    return numInProgressTasks > 0;
+    return false;
   }
 
   /**
@@ -121,7 +122,7 @@ public class ExecutionTaskTracker {
    */
   public Set<ExecutionTask> tasksInProgress() {
     Set<ExecutionTask> tasksInProgress = new HashSet<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       tasksInProgress.addAll(_inProgressTasks.get(balancingAction));
     }
 
@@ -133,7 +134,7 @@ public class ExecutionTaskTracker {
    */
   public Set<ExecutionTask> tasksAborted() {
     Set<ExecutionTask> tasksAborted = new HashSet<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       tasksAborted.addAll(_abortedTasks.get(balancingAction));
     }
 
@@ -145,7 +146,7 @@ public class ExecutionTaskTracker {
    */
   public Set<ExecutionTask> tasksDead() {
     Set<ExecutionTask> tasksDead = new HashSet<>();
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       tasksDead.addAll(_deadTasks.get(balancingAction));
     }
 
@@ -166,6 +167,22 @@ public class ExecutionTaskTracker {
 
   public int numDeadReplicaDeletion() {
     return _deadTasks.get(BalancingAction.REPLICA_DELETION).size();
+  }
+  
+  public int numAbortingReplicaMove() {
+    return _abortingTasks.get(BalancingAction.REPLICA_MOVEMENT).size();
+  }
+
+  public int numAbortingLeadershipMove() {
+    return _abortingTasks.get(BalancingAction.LEADERSHIP_MOVEMENT).size();
+  }
+
+  public int numAbortingReplicaAddition() {
+    return _abortingTasks.get(BalancingAction.REPLICA_ADDITION).size();
+  }
+
+  public int numAbortingReplicaDeletion() {
+    return _abortingTasks.get(BalancingAction.REPLICA_DELETION).size();
   }
 
   public int numAbortedReplicaMove() {
@@ -221,24 +238,24 @@ public class ExecutionTaskTracker {
    */
   public void clear() {
     // Clear dead tasks.
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _deadTasks.get(balancingAction).clear();
     }
-    _deadTasks.clear();
+    // Clear aborting tasks.
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
+      _abortingTasks.get(balancingAction).clear();
+    }
     // Clear aborted tasks.
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _abortedTasks.get(balancingAction).clear();
     }
-    _abortedTasks.clear();
     // Clear in progress tasks.
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _inProgressTasks.get(balancingAction).clear();
     }
-    _inProgressTasks.clear();
     // Clear pending proposals.
-    for (BalancingAction balancingAction : BalancingAction.values()) {
+    for (BalancingAction balancingAction : BalancingAction.cachedValues()) {
       _pendingProposals.get(balancingAction).clear();
     }
-    _pendingProposals.clear();
   }
 }

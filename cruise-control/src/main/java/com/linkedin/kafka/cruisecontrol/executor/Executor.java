@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.List;
 
-import static com.linkedin.kafka.cruisecontrol.executor.ExecutionTask.Healthiness.*;
+import static com.linkedin.kafka.cruisecontrol.executor.ExecutionTask.State.*;
 
 
 /**
@@ -232,8 +232,8 @@ public class Executor {
 
         if (!tasksToExecute.isEmpty()) {
           // Execute the tasks.
-          ExecutorUtils.executeReplicaReassignmentTasks(_zkUtils, tasksToExecute);
           _executionTaskManager.markTasksInProgress(tasksToExecute);
+          ExecutorUtils.executeReplicaReassignmentTasks(_zkUtils, tasksToExecute);
         }
         // Wait for some partition movements to finish
         waitForExecutionTaskToFinish();
@@ -329,8 +329,7 @@ public class Executor {
           if (cluster.partition(tp) == null) {
             LOG.debug("Task {} is marked as finished because the topic has been deleted", task);
             finishedTasks.add(task);
-            task.abort();
-            _executionTaskManager.markTaskHealthiness(task);
+            _executionTaskManager.markTaskAborting(task);
             continue;
           }
           boolean taskDone;
@@ -377,15 +376,15 @@ public class Executor {
         destinationExists = destinationExists || (node.id() == task.destinationBrokerId());
         sourceExists = sourceExists || (node.id() == task.sourceBrokerId());
       }
-      switch (task.healthiness()) {
-        case NORMAL:
+      switch (task.state()) {
+        case IN_PROGRESS:
           return destinationExists && !sourceExists;
-        case ABORTED:
+        case ABORTING:
           return !destinationExists && sourceExists;
         case DEAD:
           return !destinationExists && !sourceExists;
         default:
-          throw new IllegalStateException("Should never be here.");
+          throw new IllegalStateException("Should never be here. State " + task.state());
       }
     }
 
@@ -402,10 +401,10 @@ public class Executor {
       for (Node node : cluster.partition(tp).replicas()) {
         destinationExists = destinationExists || (node.id() == task.destinationBrokerId());
       }
-      switch (task.healthiness()) {
-        case NORMAL:
+      switch (task.state()) {
+        case IN_PROGRESS:
           return destinationExists;
-        case ABORTED:
+        case ABORTING:
         case DEAD:
           return true;
         default:
@@ -415,10 +414,10 @@ public class Executor {
 
     private boolean isLeadershipMovementDone(Cluster cluster, TopicPartition tp, ExecutionTask task) {
       Node leader = cluster.leaderFor(tp);
-      switch (task.healthiness()) {
-        case NORMAL:
+      switch (task.state()) {
+        case IN_PROGRESS:
           return leader != null && leader.id() == task.destinationBrokerId();
-        case ABORTED:
+        case ABORTING:
         case DEAD:
           return true;
         default:
@@ -428,47 +427,45 @@ public class Executor {
     }
 
     private void maybeAbortTasks(Collection<ExecutionTask> tasks) {
-      List<ExecutionTask> abortedTasks = new ArrayList<>();
+      List<ExecutionTask> abortingTasks = new ArrayList<>();
       List<ExecutionTask> deadTasks = new ArrayList<>();
-      List<ExecutionTask> abortedOrDeadLeaderMoveTasks = new ArrayList<>();
+      List<ExecutionTask> abortingOrDeadLeaderMoveTasks = new ArrayList<>();
       Set<Integer> aliveNodes = new HashSet<>();
       Cluster cluster = _metadataClient.cluster();
       cluster.nodes().forEach(node -> aliveNodes.add(node.id()));
       for (ExecutionTask task : tasks) {
-        if (task.healthiness() == NORMAL) {
+        if (task.state() == IN_PROGRESS || task.state() == ABORTING) {
           boolean destinationAlive = task.destinationBrokerId() == null || aliveNodes.contains(task.destinationBrokerId());
           boolean sourceAlive = task.sourceBrokerId() == null || aliveNodes.contains(task.sourceBrokerId());
           if (!destinationAlive) {
             if (sourceAlive) {
-              task.abort();
-              _executionTaskManager.markTaskHealthiness(task);
-              abortedTasks.add(task);
+              _executionTaskManager.markTaskAborting(task);
+              abortingTasks.add(task);
               LOG.error("Aborting execution for task {} because destination broker is down.", task);
             } else {
-              task.kill();
-              _executionTaskManager.markTaskHealthiness(task);
+              _executionTaskManager.markTaskDead(task);
               deadTasks.add(task);
               LOG.error("Killing execution for task {} because both source and destination broker are down.", task);
             }
             // Keep track of leadership movement tasks.
             if (task.proposal.balancingAction() == BalancingAction.LEADERSHIP_MOVEMENT) {
-              abortedOrDeadLeaderMoveTasks.add(task);
+              abortingOrDeadLeaderMoveTasks.add(task);
             }
           }
         }
       }
-      if (!abortedTasks.isEmpty() || !deadTasks.isEmpty()) {
+      if (!abortingTasks.isEmpty() || !deadTasks.isEmpty()) {
         // The aborted or dead relocation tasks include replica movement, addition, and deletion tasks.
-        List<ExecutionTask> abortedOrDeadReassignmentTasks = new ArrayList<>(abortedTasks);
+        List<ExecutionTask> abortedOrDeadReassignmentTasks = new ArrayList<>(abortingTasks);
         abortedOrDeadReassignmentTasks.addAll(deadTasks);
-        abortedOrDeadReassignmentTasks.removeAll(abortedOrDeadLeaderMoveTasks);
+        abortedOrDeadReassignmentTasks.removeAll(abortingOrDeadLeaderMoveTasks);
         try {
           Thread.sleep(1000);
         } catch (InterruptedException e) {
           e.printStackTrace();
         }
         ExecutorUtils.executeReplicaReassignmentTasks(_zkUtils, abortedOrDeadReassignmentTasks);
-        LOG.error("Aborted tasks: {} , dead tasks: {}, stopping proposal execution.", abortedTasks, deadTasks);
+        LOG.error("Aborted tasks: {} , dead tasks: {}, stopping proposal execution.", abortingTasks, deadTasks);
         stopExecution();
       }
     }

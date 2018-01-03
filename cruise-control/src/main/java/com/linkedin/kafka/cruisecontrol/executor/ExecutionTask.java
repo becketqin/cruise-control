@@ -16,12 +16,12 @@ public class ExecutionTask implements Comparable<ExecutionTask> {
   public final long executionId;
   // The corresponding balancing proposal of this task.
   public final BalancingProposal proposal;
-  private volatile Healthiness healthiness;
+  private volatile State _state;
 
   public ExecutionTask(long executionId, BalancingProposal proposal) {
     this.executionId = executionId;
     this.proposal = proposal;
-    this.healthiness = Healthiness.NORMAL;
+    this._state = State.PENDING;
   }
 
   /**
@@ -39,24 +39,31 @@ public class ExecutionTask implements Comparable<ExecutionTask> {
   }
 
   /**
-   * @return the healthiness of the task.
+   * @return the state of the task.
    */
-  public Healthiness healthiness() {
-    return this.healthiness;
+  public State state() {
+    return this._state;
+  }
+
+  /**
+   * Mark task in progress.
+   */
+  public void inProgress() {
+    this._state = State.IN_PROGRESS;
   }
 
   /**
    * Kill the task.
    */
   public void kill() {
-    this.healthiness = Healthiness.DEAD;
+    this._state = State.DEAD;
   }
 
   /**
    * Abort the task.
    */
   public void abort() {
-    this.healthiness = Healthiness.ABORTED;
+    this._state = State.ABORTING;
   }
 
   @Override
@@ -80,13 +87,13 @@ public class ExecutionTask implements Comparable<ExecutionTask> {
     return executionStatsMap;
   }
 
-  public enum Healthiness {
-    NORMAL, ABORTED, DEAD
+  public enum State {
+    PENDING, IN_PROGRESS, ABORTING, ABORTED, DEAD, COMPLETED
   }
 
   @Override
   public String toString() {
-    return String.format("{EXE_ID: %d, %s, %s}", executionId, proposal, healthiness);
+    return String.format("{EXE_ID: %d, %s, %s}", executionId, proposal, _state);
   }
 
   @Override

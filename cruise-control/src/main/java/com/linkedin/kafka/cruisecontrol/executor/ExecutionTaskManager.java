@@ -9,7 +9,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingProposal;
 
 import com.linkedin.kafka.cruisecontrol.common.BalancingAction;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,6 +45,7 @@ public class ExecutionTaskManager {
   private static final String REPLICA_DELETION = "replica-deletion";
   private static final String IN_PROGRESS = "in-progress";
   private static final String PENDING = "pending";
+  private static final String ABORTING = "aborting";
   private static final String ABORTED = "aborted";
   private static final String DEAD = "dead";
 
@@ -50,6 +53,8 @@ public class ExecutionTaskManager {
   private static final String GAUGE_LEADERSHIP_MOVE_IN_PROGRESS = LEADERSHIP_MOVE + "-" + IN_PROGRESS;
   private static final String GAUGE_REPLICA_MOVE_PENDING = REPLICA_MOVE + "-" + PENDING;
   private static final String GAUGE_LEADERSHIP_MOVE_PENDING = LEADERSHIP_MOVE + "-" + PENDING;
+  private static final String GAUGE_REPLICA_MOVE_ABORTING = REPLICA_MOVE + "-" + ABORTING;
+  private static final String GAUGE_LEADERSHIP_MOVE_ABORTING = LEADERSHIP_MOVE + "-" + ABORTING;
   private static final String GAUGE_REPLICA_MOVE_ABORTED = REPLICA_MOVE + "-" + ABORTED;
   private static final String GAUGE_LEADERSHIP_MOVE_ABORTED = LEADERSHIP_MOVE + "-" + ABORTED;
   private static final String GAUGE_REPLICA_MOVE_DEAD = REPLICA_MOVE + "-" + DEAD;
@@ -58,6 +63,8 @@ public class ExecutionTaskManager {
   private static final String GAUGE_REPLICA_DELETION_IN_PROGRESS = REPLICA_DELETION + "-" + IN_PROGRESS;
   private static final String GAUGE_REPLICA_ADDITION_PENDING = REPLICA_ADDITION + "-" + PENDING;
   private static final String GAUGE_REPLICA_DELETION_PENDING = REPLICA_DELETION + "-" + PENDING;
+  private static final String GAUGE_REPLICA_ADDITION_ABORTING = REPLICA_ADDITION + "-" + ABORTING;
+  private static final String GAUGE_REPLICA_DELETION_ABORTING = REPLICA_DELETION + "-" + ABORTING;
   private static final String GAUGE_REPLICA_ADDITION_ABORTED = REPLICA_ADDITION + "-" + ABORTED;
   private static final String GAUGE_REPLICA_DELETION_ABORTED = REPLICA_DELETION + "-" + ABORTED;
   private static final String GAUGE_REPLICA_ADDITION_DEAD = REPLICA_ADDITION + "-" + DEAD;
@@ -106,6 +113,14 @@ public class ExecutionTaskManager {
                                       (Gauge<Integer>) _executionTaskTracker::numPendingReplicaAddition);
     dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_REPLICA_DELETION_PENDING),
                                       (Gauge<Integer>) _executionTaskTracker::numPendingReplicaDeletion);
+    dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_REPLICA_MOVE_ABORTING),
+                                      (Gauge<Integer>) _executionTaskTracker::numAbortingReplicaMove);
+    dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_LEADERSHIP_MOVE_ABORTING),
+                                      (Gauge<Integer>) _executionTaskTracker::numAbortingLeadershipMove);
+    dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_REPLICA_ADDITION_ABORTING),
+                                      (Gauge<Integer>) _executionTaskTracker::numAbortingReplicaAddition);
+    dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_REPLICA_DELETION_ABORTING),
+                                      (Gauge<Integer>) _executionTaskTracker::numAbortingReplicaDeletion);
     dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_REPLICA_MOVE_ABORTED),
                                       (Gauge<Integer>) _executionTaskTracker::numAbortedReplicaMove);
     dropwizardMetricRegistry.register(MetricRegistry.name(metricName, GAUGE_LEADERSHIP_MOVE_ABORTED),
@@ -221,6 +236,7 @@ public class ExecutionTaskManager {
       BalancingAction taskBalancingAction = tasks.iterator().next().proposal.balancingAction();
 
       for (ExecutionTask task : tasks) {
+        task.inProgress();
         // Add task to the relevant task in progress.
         BalancingAction balancingAction = task.proposal.balancingAction();
         _executionTaskTracker.inProgressTasksFor(balancingAction).add(task);
@@ -241,30 +257,73 @@ public class ExecutionTaskManager {
   }
 
   /**
-   * Mark the successful completion of a given task. Only normal execution may yield successful completion.
+   * Mark the successful completion of a given task. In-progress execution may yield successful completion. 
+   * Aborting execution may yield Aborted completion.
    */
   public void markTaskDone(ExecutionTask task) {
-    if (task.healthiness() == ExecutionTask.Healthiness.NORMAL) {
-      BalancingAction balancingAction = task.proposal.balancingAction();
-      _executionTaskTracker.inProgressTasksFor(balancingAction).remove(task);
+    if (task.state() == ExecutionTask.State.IN_PROGRESS) {
+      markTaskState(task, ExecutionTask.State.COMPLETED, new HashSet<>(Collections.singleton(ExecutionTask.State.IN_PROGRESS)));
+    } else if (task.state() == ExecutionTask.State.ABORTING) {
+      markTaskState(task, ExecutionTask.State.ABORTED, new HashSet<>(Collections.singleton(ExecutionTask.State.ABORTING)));
     }
   }
-
-  /**
-   * Mark the given task with its healthiness.
-   *
-   * @param task Task to be marked.
-   */
-  public void markTaskHealthiness(ExecutionTask task) {
-    BalancingAction balancingAction = task.proposal.balancingAction();
-    _executionTaskTracker.inProgressTasksFor(balancingAction).remove(task);
-    ExecutionTask.Healthiness healthiness = task.healthiness();
-    if (healthiness == ExecutionTask.Healthiness.ABORTED) {
-      _executionTaskTracker.abortedTasksFor(balancingAction).add(task);
-    } else if (healthiness == ExecutionTask.Healthiness.DEAD) {
-      _executionTaskTracker.deadTasksFor(balancingAction).add(task);
+  
+  public void markTaskAborting(ExecutionTask task) {
+    if (task.state() != ExecutionTask.State.ABORTING) {
+      Set<ExecutionTask.State> validCurrStates = new HashSet<>(Collections.singleton(ExecutionTask.State.IN_PROGRESS));
+      markTaskState(task, ExecutionTask.State.ABORTING, validCurrStates);
+      task.abort();
+    }
+  }
+  
+  public void markTaskDead(ExecutionTask task) {
+    if (task.state() != ExecutionTask.State.DEAD) {
+      Set<ExecutionTask.State> validCurrStates = new HashSet<>(Arrays.asList(ExecutionTask.State.ABORTING,
+                                                                             ExecutionTask.State.IN_PROGRESS));
+      markTaskState(task, ExecutionTask.State.ABORTING, validCurrStates);
+      task.kill();
+    }
+  }
+  
+  private void markTaskState(ExecutionTask task, 
+                             ExecutionTask.State targetState, 
+                             Set<ExecutionTask.State> validCurrentState) {
+    ExecutionTask.State currentState = task.state();
+    if (validCurrentState.contains(currentState)) {
+      BalancingAction balancingAction = task.proposal.balancingAction();
+      switch (currentState) {
+        case PENDING:
+          _executionTaskTracker.pendingProposalsFor(balancingAction).remove(task.proposal);
+          break;
+        case IN_PROGRESS:
+          _executionTaskTracker.inProgressTasksFor(balancingAction).remove(task);
+          break;
+        case ABORTING:
+          _executionTaskTracker.abortingTasksFor(balancingAction).remove(task);
+          break;
+        default:
+          throw new IllegalStateException("Cannot mark a task in " + task.state() + " to " + targetState + " state");
+      }
+      
+      switch (targetState) {
+        case IN_PROGRESS:
+          _executionTaskTracker.inProgressTasksFor(balancingAction).add(task);
+          break;
+        case ABORTING:
+          _executionTaskTracker.abortingTasksFor(balancingAction).add(task);
+          break;
+        case DEAD:
+          _executionTaskTracker.deadTasksFor(balancingAction).add(task);
+          break;
+        case ABORTED:
+          _executionTaskTracker.abortedTasksFor(balancingAction).add(task);
+          break;
+        default:
+          // let it go.
+      }
     } else {
-      throw new IllegalStateException(String.format("Illegal attempt to mark healthiness: %s.", healthiness));
+      throw new IllegalStateException("Cannot mark a task in " + task.state() + " to" + targetState + "state. The " 
+                                          + "current state mush be in " + validCurrentState);
     }
   }
 
