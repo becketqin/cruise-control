@@ -38,10 +38,28 @@ public class MetricValues {
    */
   public void set(int index, double value) {
     if (_max == _values[index] && value < _max) {
-      _max = Float.MIN_VALUE;
+      _max = Float.NEGATIVE_INFINITY;
+    } else if (_max != Float.NEGATIVE_INFINITY && value > _max) {
+      _max = (float) value;
     }
     _sumForAvg += value - _values[index];
     _values[index] = (float) value;
+  }
+
+  /**
+   * Add a value at the given index. 
+   * @param index the index to add the value.
+   * @param value the value to add.
+   */
+  public void add(int index, double value) {
+    if (_max == _values[index] && value < 0) {
+      _max = Float.NEGATIVE_INFINITY;
+    }
+    _sumForAvg += value;
+    _values[index] += (float) value;
+    if (_max != Float.NEGATIVE_INFINITY && _values[index] > _max) {
+      _max = _values[index];
+    }
   }
 
   /**
@@ -61,7 +79,7 @@ public class MetricValues {
   public void clear() {
     Arrays.fill(_values, 0);
     _sumForAvg = 0;
-    _max = Float.MIN_VALUE;
+    _max = Float.NEGATIVE_INFINITY;
   }
 
   /**
@@ -83,7 +101,7 @@ public class MetricValues {
                                                            + "MetricValue with length %d",
                                                        values.length, _values.length));
     }
-    _max = Float.MIN_VALUE;
+    _max = Float.NEGATIVE_INFINITY;
     for (int i = 0; i < _values.length; i++) {
       double toAdd = values[i];
       _values[i] += toAdd;
@@ -103,7 +121,7 @@ public class MetricValues {
                                                            + "MetricValue with length %d",
                                                        metricValues.length(), _values.length));
     }
-    _max = Float.MIN_VALUE;
+    _max = Float.NEGATIVE_INFINITY;
     for (int i = 0; i < _values.length; i++) {
       double toAdd = metricValues.get(i);
       _values[i] += toAdd;
@@ -123,7 +141,7 @@ public class MetricValues {
                                                            + "MetricValue with length %d",
                                                        values.length, _values.length));
     }
-    _max = Float.MIN_VALUE;
+    _max = Float.NEGATIVE_INFINITY;
     for (int i = 0; i < _values.length; i++) {
       double toDeduct = values[i];
       _values[i] -= toDeduct;
@@ -143,7 +161,7 @@ public class MetricValues {
                                                            + "MetricValue with length %d",
                                                        metricValues.length(), _values.length));
     }
-    _max = Float.MIN_VALUE;
+    _max = Float.NEGATIVE_INFINITY;
     for (int i = 0; i < _values.length; i++) {
       double toDeduct = metricValues.get(i);
       _values[i] -= toDeduct;
