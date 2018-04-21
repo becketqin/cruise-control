@@ -4,8 +4,8 @@
 
 package com.linkedin.kafka.cruisecontrol.monitor.task;
 
-import com.linkedin.kafka.cruisecontrol.model.LinearRegressionModelParameters;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.cruisecontrol.model.regression.LinearRegression;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.MetricFetcherManager;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.SampleStore;
 import java.util.concurrent.TimeoutException;
@@ -52,7 +52,7 @@ class TrainingTask implements Runnable {
   }
 
   private boolean isDone() {
-    return ModelParameters.updateModelCoefficient() || _nextSamplingEndMs >= _trainingEndMs;
+    return KafkaMetricEstimator.updateModelCoefficient() || _nextSamplingEndMs >= _trainingEndMs;
   }
 
   @Override
@@ -80,9 +80,9 @@ class TrainingTask implements Runnable {
       LOG.info("Load monitor finished training with time range [{}, {}] in {} seconds. Coefficients: {}, {}, {}",
                _trainingStartMs, _trainingEndMs,
                (_time.milliseconds() - trainingTaskStartingMs) / 1000,
-               ModelParameters.getCoefficient(LinearRegressionModelParameters.ModelCoefficient.LEADER_BYTES_IN),
-               ModelParameters.getCoefficient(LinearRegressionModelParameters.ModelCoefficient.LEADER_BYTES_OUT),
-               ModelParameters.getCoefficient(LinearRegressionModelParameters.ModelCoefficient.FOLLOWER_BYTES_IN));
+               KafkaMetricEstimator.getCoefficient(LinearRegression.ModelMetric.LEADER_BYTES_IN),
+               KafkaMetricEstimator.getCoefficient(LinearRegression.ModelMetric.LEADER_BYTES_OUT),
+               KafkaMetricEstimator.getCoefficient(LinearRegression.ModelMetric.REPLICATION_BYTES_IN));
     }
   }
 }

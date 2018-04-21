@@ -17,7 +17,7 @@ import com.linkedin.kafka.cruisecontrol.executor.Executor;
 import com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress;
 import com.linkedin.kafka.cruisecontrol.model.Broker;
 import com.linkedin.kafka.cruisecontrol.model.ClusterModel;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import com.linkedin.kafka.cruisecontrol.model.ModelUtils;
 import com.linkedin.kafka.cruisecontrol.monitor.ModelCompletenessRequirements;
 import com.linkedin.kafka.cruisecontrol.monitor.LoadMonitor;
@@ -59,7 +59,7 @@ public class KafkaCruiseControl {
     _time = new SystemTime();
     // initialize some of the static state of Kafka Cruise Control;
     ModelUtils.init(config);
-    ModelParameters.init(config);
+    KafkaMetricEstimator.init(config);
 
     // Instantiate the components.
     _loadMonitor = new LoadMonitor(config, _time, dropwizardMetricRegistry, KafkaMetricDef.commonMetricDef());

@@ -1023,8 +1023,6 @@ public class KafkaCruiseControlServlet extends HttpServlet {
           } else {
             out.write("None".getBytes(StandardCharsets.UTF_8));
           }
-          out.write(String.format("%n%nLinear Regression Model State:%n%s", state.monitorState().detailTrainingProgress())
-                        .getBytes(StandardCharsets.UTF_8));
         }
       }
     }

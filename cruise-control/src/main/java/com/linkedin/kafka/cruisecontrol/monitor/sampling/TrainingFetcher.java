@@ -8,7 +8,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.linkedin.cruisecontrol.metricdef.MetricDef;
 import com.linkedin.kafka.cruisecontrol.exception.MetricSamplingException;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import java.util.Set;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.TopicPartition;
@@ -56,7 +56,7 @@ class TrainingFetcher extends MetricFetcher {
       MetricSampler.Samples samples =
           _metricSampler.getSamples(_cluster, _assignedPartitions, _startTimeMs, _endTimeMs,
                                     MetricSampler.SamplingMode.BROKER_METRICS_ONLY, _metricDef);
-      ModelParameters.addMetricObservation(samples.brokerMetricSamples());
+      KafkaMetricEstimator.addMetricObservation(samples.brokerMetricSamples());
 
       _sampleStore.storeSamples(samples);
     } catch (Exception e) {

@@ -35,7 +35,7 @@ public class MonitorUtils {
    * <ul>
    * <li>FOLLOWER_CPU = LEADER_NETWORK_IN * coefficient + residue </li>
    * <li>FOLLOWER_DISK = LEADER_DISK </li>
-   * <li>FOLLOWER_BYTES_IN = LEADER_BYTES_IN </li>
+   * <li>REPLICATION_BYTES_IN = LEADER_BYTES_IN </li>
    * <li>FOLLOWER_BYTES_OUT = 0 </li>
    * </ul>
    *

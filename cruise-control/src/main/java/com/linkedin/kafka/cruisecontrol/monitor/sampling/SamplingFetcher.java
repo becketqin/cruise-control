@@ -9,7 +9,7 @@ import com.codahale.metrics.Timer;
 import com.linkedin.cruisecontrol.metricdef.MetricDef;
 import com.linkedin.kafka.cruisecontrol.common.Resource;
 import com.linkedin.kafka.cruisecontrol.exception.MetricSamplingException;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import com.linkedin.kafka.cruisecontrol.model.ModelUtils;
 import com.linkedin.kafka.cruisecontrol.monitor.metricdefinition.KafkaMetricDef;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.aggregator.KafkaBrokerMetricSampleAggregator;
@@ -109,7 +109,7 @@ class SamplingFetcher extends MetricFetcher {
     addPartitionSamples(samples.partitionMetricSamples());
     addBrokerMetricSamples(samples.brokerMetricSamples());
     // Add the broker metric samples to the observation.
-    ModelParameters.addMetricObservation(samples.brokerMetricSamples());
+    KafkaMetricEstimator.addMetricObservation(samples.brokerMetricSamples());
 
     return samples;
   }
@@ -125,7 +125,7 @@ class SamplingFetcher extends MetricFetcher {
         TopicPartition tp = partitionMetricSample.entity().tp();
         if (_assignedPartitions.contains(tp)) {
           // we fill in the cpu utilization based on the model in case user did not fill it in.
-          if (_useLinearRegressionModel && ModelParameters.trainingCompleted()) {
+          if (_useLinearRegressionModel && KafkaMetricEstimator.trainingCompleted()) {
             partitionMetricSample.record(KafkaMetricDef.commonMetricDef().metricInfo(CPU_USAGE.name()),
                                          estimateCpuUtil(partitionMetricSample));
           }

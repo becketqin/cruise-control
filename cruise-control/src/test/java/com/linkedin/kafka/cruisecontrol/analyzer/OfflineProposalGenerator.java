@@ -10,7 +10,7 @@ import com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress;
 import com.linkedin.kafka.cruisecontrol.config.KafkaCruiseControlConfig;
 import com.linkedin.kafka.cruisecontrol.model.ClusterModel;
 import com.linkedin.kafka.cruisecontrol.model.ClusterModelStats;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import com.linkedin.kafka.cruisecontrol.model.ModelUtils;
 import com.linkedin.kafka.cruisecontrol.model.RawAndDerivedResource;
 import java.io.BufferedInputStream;
@@ -34,7 +34,7 @@ public class OfflineProposalGenerator {
     Properties props = KafkaCruiseControlUnitTestUtils.getKafkaCruiseControlProperties();
     KafkaCruiseControlConfig config = new KafkaCruiseControlConfig(props);
     ModelUtils.init(config);
-    ModelParameters.init(config);
+    KafkaMetricEstimator.init(config);
     BalancingConstraint balancingConstraint = new BalancingConstraint(config);
 
     long start = System.currentTimeMillis();

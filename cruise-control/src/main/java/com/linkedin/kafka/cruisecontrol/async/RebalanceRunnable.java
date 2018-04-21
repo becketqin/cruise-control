@@ -10,14 +10,14 @@ import com.linkedin.kafka.cruisecontrol.monitor.ModelCompletenessRequirements;
 import java.util.List;
 
 /**
- * The async runnable for {@link KafkaCruiseControl#rebalance(List, boolean, ModelCompletenessRequirements, 
+ * The async runnable for {@link KafkaCruiseControl#rebalance(List, boolean, ModelCompletenessRequirements,
  * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)}
  */
 class RebalanceRunnable extends OperationRunnable<GoalOptimizer.OptimizerResult> {
   private final List<String> _goals;
   private final boolean _dryRun;
   private final ModelCompletenessRequirements _modelCompletenessRequirements;
-  
+
   RebalanceRunnable(KafkaCruiseControl kafkaCruiseControl,
                     OperationFuture<GoalOptimizer.OptimizerResult> future,
                     List<String> goals,

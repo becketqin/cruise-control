@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LinkedIn Corp. Licensed under the BSD 2-Clause License (the "License"). See License in the project root for license information.  
+ * Copyright 2018 LinkedIn Corp. Licensed under the BSD 2-Clause License (the "License"). See License in the project root for license information.
  */
 
 package com.linkedin.kafka.cruisecontrol.monitor.sampling;
@@ -14,20 +14,20 @@ import com.linkedin.cruisecontrol.monitor.sampling.aggregator.MetricSampleAggreg
 public class BrokerEntity extends Entity<String> {
   private final String _host;
   private final int _brokerId;
-  
+
   public BrokerEntity(String host, int brokerId) {
     _host = host;
     _brokerId = brokerId;
   }
-  
+
   public int brokerId() {
     return _brokerId;
   }
-  
+
   public String host() {
     return _host;
   }
-  
+
   @Override
   public String group() {
     return _host;

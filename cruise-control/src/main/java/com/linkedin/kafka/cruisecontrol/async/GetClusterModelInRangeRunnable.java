@@ -16,7 +16,7 @@ class GetClusterModelInRangeRunnable extends OperationRunnable<ClusterModel> {
   private final long _startMs;
   private final long _endMs;
   private final ModelCompletenessRequirements _modelCompletenessRequirements;
-  
+
   GetClusterModelInRangeRunnable(KafkaCruiseControl kafkaCruiseControl,
                                  OperationFuture<ClusterModel> future,
                                  long startMs,

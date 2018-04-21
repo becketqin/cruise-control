@@ -10,16 +10,16 @@ import com.linkedin.kafka.cruisecontrol.monitor.ModelCompletenessRequirements;
 
 
 /**
- * The async runnable to get the {@link com.linkedin.kafka.cruisecontrol.model.ClusterModel.BrokerStats} for the cluster 
+ * The async runnable to get the {@link com.linkedin.kafka.cruisecontrol.model.ClusterModel.BrokerStats} for the cluster
  * model.
- * 
- * @see KafkaCruiseControl#clusterModel(long, ModelCompletenessRequirements, 
- * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress) 
+ *
+ * @see KafkaCruiseControl#clusterModel(long, ModelCompletenessRequirements,
+ * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)
  */
 class GetBrokerStatsRunnable extends OperationRunnable<ClusterModel.BrokerStats> {
   private final long _time;
   private final ModelCompletenessRequirements _modelCompletenessRequirements;
-  
+
   GetBrokerStatsRunnable(KafkaCruiseControl kafkaCruiseControl,
                          OperationFuture<ClusterModel.BrokerStats> future,
                          long time,

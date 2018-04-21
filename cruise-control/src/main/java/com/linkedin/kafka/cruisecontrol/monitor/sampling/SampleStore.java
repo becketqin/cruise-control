@@ -5,7 +5,7 @@
 package com.linkedin.kafka.cruisecontrol.monitor.sampling;
 
 import com.linkedin.cruisecontrol.common.CruiseControlConfigurable;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.aggregator.KafkaPartitionMetricSampleAggregator;
 
 
@@ -60,7 +60,7 @@ public interface SampleStore extends CruiseControlConfigurable {
       for (PartitionMetricSample sample : samples.partitionMetricSamples()) {
         _metricSampleAggregator.addSample(sample, false);
       }
-      ModelParameters.addMetricObservation(samples.brokerMetricSamples());
+      KafkaMetricEstimator.addMetricObservation(samples.brokerMetricSamples());
     }
   }
 }

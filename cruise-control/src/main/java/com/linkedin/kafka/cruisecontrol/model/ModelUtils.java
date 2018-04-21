@@ -5,6 +5,7 @@
 package com.linkedin.kafka.cruisecontrol.model;
 
 import com.linkedin.kafka.cruisecontrol.config.KafkaCruiseControlConfig;
+import com.linkedin.cruisecontrol.model.regression.LinearRegression;
 
 
 /**
@@ -26,21 +27,22 @@ public class ModelUtils {
     _useLinearRegressionModel = config.getBoolean(KafkaCruiseControlConfig.USE_LINEAR_REGRESSION_MODEL_CONFIG);
   }
 
+  /**
+   * This method needs to be removed once the 
+   * @param leaderBytesInRate
+   * @param leaderBytesOutRate
+   * @param leaderCpuUtil
+   * @return
+   */
   public static double getFollowerCpuUtilFromLeaderLoad(double leaderBytesInRate,
                                                         double leaderBytesOutRate,
                                                         double leaderCpuUtil) {
-    if (_useLinearRegressionModel) {
-      double followerBytesInCoefficient =
-          ModelParameters.getCoefficient(LinearRegressionModelParameters.ModelCoefficient.FOLLOWER_BYTES_IN);
-      return followerBytesInCoefficient * leaderBytesInRate;
+    if (leaderBytesInRate == 0.0 && leaderBytesOutRate == 0.0) {
+      return 0.0;
     } else {
-      if (leaderBytesInRate == 0.0 && leaderBytesOutRate == 0.0) {
-        return 0.0;
-      } else {
-        return leaderCpuUtil * (ModelParameters.CPU_WEIGHT_OF_FOLLOWER_BYTES_IN_RATE * leaderBytesInRate) / (
-            ModelParameters.CPU_WEIGHT_OF_LEADER_BYTES_IN_RATE * leaderBytesInRate
-                + ModelParameters.CPU_WEIGHT_OF_LEADER_BYTES_OUT_RATE * leaderBytesOutRate);
-      }
+      return leaderCpuUtil * (KafkaMetricEstimator.CPU_WEIGHT_OF_FOLLOWER_BYTES_IN_RATE * leaderBytesInRate) / (
+          KafkaMetricEstimator.CPU_WEIGHT_OF_LEADER_BYTES_IN_RATE * leaderBytesInRate
+              + KafkaMetricEstimator.CPU_WEIGHT_OF_LEADER_BYTES_OUT_RATE * leaderBytesOutRate);
     }
   }
 
@@ -64,9 +66,9 @@ public class ModelUtils {
         throw new IllegalArgumentException(String.format("The partition bytes out rate %f is greater than the broker "
             + "bytes out rate %f", partitionBytesOutRate, brokerLeaderBytesOutRate));
       } else {
-        double brokerLeaderBytesInContribution = ModelParameters.CPU_WEIGHT_OF_LEADER_BYTES_IN_RATE * brokerLeaderBytesInRate;
-        double brokerLeaderBytesOutContribution = ModelParameters.CPU_WEIGHT_OF_LEADER_BYTES_OUT_RATE * brokerLeaderBytesOutRate;
-        double brokerFollowerBytesInContribution = ModelParameters.CPU_WEIGHT_OF_FOLLOWER_BYTES_IN_RATE * brokerFollowerBytesInRate;
+        double brokerLeaderBytesInContribution = KafkaMetricEstimator.CPU_WEIGHT_OF_LEADER_BYTES_IN_RATE * brokerLeaderBytesInRate;
+        double brokerLeaderBytesOutContribution = KafkaMetricEstimator.CPU_WEIGHT_OF_LEADER_BYTES_OUT_RATE * brokerLeaderBytesOutRate;
+        double brokerFollowerBytesInContribution = KafkaMetricEstimator.CPU_WEIGHT_OF_FOLLOWER_BYTES_IN_RATE * brokerFollowerBytesInRate;
         double totalContribution = brokerLeaderBytesInContribution + brokerLeaderBytesOutContribution + brokerFollowerBytesInContribution;
 
         double leaderBytesInCpuContribution = brokerCpuUtil * (brokerLeaderBytesInContribution / totalContribution);
@@ -81,9 +83,9 @@ public class ModelUtils {
   public static double estimateLeaderCpuUtilUsingLinearRegressionModel(double leaderPartitionBytesInRate,
                                                                        double leaderPartitionBytesOutRate) {
     double leaderBytesInCoefficient =
-        ModelParameters.getCoefficient(LinearRegressionModelParameters.ModelCoefficient.LEADER_BYTES_IN);
+        KafkaMetricEstimator.getCoefficient(LinearRegression.ModelMetric.LEADER_BYTES_IN);
     double leaderBytesOutCoefficient =
-        ModelParameters.getCoefficient(LinearRegressionModelParameters.ModelCoefficient.LEADER_BYTES_OUT);
+        KafkaMetricEstimator.getCoefficient(LinearRegression.ModelMetric.LEADER_BYTES_OUT);
     return leaderBytesInCoefficient * leaderPartitionBytesInRate
         + leaderBytesOutCoefficient * leaderPartitionBytesOutRate;
   }

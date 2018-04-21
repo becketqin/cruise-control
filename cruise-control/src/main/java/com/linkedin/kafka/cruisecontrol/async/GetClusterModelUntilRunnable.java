@@ -9,7 +9,7 @@ import com.linkedin.kafka.cruisecontrol.model.ClusterModel;
 import com.linkedin.kafka.cruisecontrol.monitor.ModelCompletenessRequirements;
 
 /**
- * The async runnable for {@link KafkaCruiseControl#clusterModel(long, ModelCompletenessRequirements, 
+ * The async runnable for {@link KafkaCruiseControl#clusterModel(long, ModelCompletenessRequirements,
  * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)}
  */
 class GetClusterModelUntilRunnable extends OperationRunnable<ClusterModel> {

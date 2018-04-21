@@ -11,14 +11,14 @@ import java.util.List;
 
 /**
  * The async runnable for {@link KafkaCruiseControl#getOptimizationProposals(
- * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)} and 
- * {@link KafkaCruiseControl#getOptimizationProposals(List, ModelCompletenessRequirements, 
+ * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)} and
+ * {@link KafkaCruiseControl#getOptimizationProposals(List, ModelCompletenessRequirements,
  * com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)}
  */
 class GetOptimizationProposalsRunnable extends OperationRunnable<GoalOptimizer.OptimizerResult> {
   private final List<String> _goals;
   private final ModelCompletenessRequirements _modelCompletenessRequirements;
-  
+
   GetOptimizationProposalsRunnable(KafkaCruiseControl kafkaCruiseControl,
                                    OperationFuture<GoalOptimizer.OptimizerResult> future,
                                    List<String> goals,

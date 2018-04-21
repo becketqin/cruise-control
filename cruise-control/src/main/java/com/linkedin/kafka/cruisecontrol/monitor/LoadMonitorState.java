@@ -4,8 +4,6 @@
 
 package com.linkedin.kafka.cruisecontrol.monitor;
 
-import com.linkedin.kafka.cruisecontrol.model.LinearRegressionModelParameters;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.aggregator.SampleExtrapolation;
 import com.linkedin.kafka.cruisecontrol.monitor.task.LoadMonitorTaskRunner.LoadMonitorTaskRunnerState;
 import java.util.Collections;
@@ -145,13 +143,6 @@ public class LoadMonitorState {
    */
   public Map<String, Object> getJsonStructure() {
     Map<String, Object> loadMonitorState = new HashMap<>();
-    String trained = ModelParameters.trainingCompleted() ? "true" : "false";
-    double trainingPct = 0.0;
-    if (ModelParameters.trainingCompleted()) {
-      trainingPct = 100.0;
-    } else {
-      trainingPct = ModelParameters.modelCoefficientTrainingCompleteness() * 100;
-    }
     // generic attribute collection
     switch (_loadMonitorTaskRunnerState) {
       case RUNNING:
@@ -161,8 +152,6 @@ public class LoadMonitorState {
       case TRAINING:
       case LOADING:
         loadMonitorState.put("state", _loadMonitorTaskRunnerState);
-        loadMonitorState.put("trained", trained);
-        loadMonitorState.put("trainingPct", trainingPct);
         loadMonitorState.put("numMonitoredWindows", _monitoredWindows.size());
         loadMonitorState.put("monitoredWindows", _monitoredWindows);
         loadMonitorState.put("numValidPartitions", _numValidMonitoredPartitions);
@@ -209,9 +198,6 @@ public class LoadMonitorState {
 
   @Override
   public String toString() {
-    String trained = ModelParameters.trainingCompleted()
-        ? "(TRAINED)" : String.format("(%.3f%% trained)",
-                                      ModelParameters.modelCoefficientTrainingCompleteness() * 100);
     float validPartitionPercent = (float) _numValidMonitoredPartitions / _totalNumPartitions;
     float validWindowPercent = (float) _numValidWindows / _monitoredWindows.size();
     switch (_loadMonitorTaskRunnerState) {
@@ -221,28 +207,28 @@ public class LoadMonitorState {
       case RUNNING:
       case SAMPLING:
       case PAUSED:
-        return String.format("{state: %s%s, NumValidWindows: (%d/%d) (%.3f%%), NumValidPartitions: %d/%d (%.3f%%), flawedPartitions: %d}",
-                             _loadMonitorTaskRunnerState, trained, _numValidWindows,
+        return String.format("{state: %s, NumValidWindows: (%d/%d) (%.3f%%), NumValidPartitions: %d/%d (%.3f%%), flawedPartitions: %d}",
+                             _loadMonitorTaskRunnerState, _numValidWindows,
                              _monitoredWindows.size(), validWindowPercent * 100,
                              _numValidMonitoredPartitions, _totalNumPartitions, validPartitionPercent * 100,
                              _sampleExtrapolations.size());
       case BOOTSTRAPPING:
-        return String.format("{state: %s%s, BootstrapProgress: %.3f%%, NumValidWindows: (%d/%d) (%.3f%%), "
+        return String.format("{state: %s, BootstrapProgress: %.3f%%, NumValidWindows: (%d/%d) (%.3f%%), "
                                  + "NumValidPartitions: %d/%d (%.3f%%), flawedPartitions: %d}",
-                             _loadMonitorTaskRunnerState, trained, _bootstrapProgress * 100, _numValidWindows, _monitoredWindows
+                             _loadMonitorTaskRunnerState, _bootstrapProgress * 100, _numValidWindows, _monitoredWindows
                 .size(), validWindowPercent * 100,
                              _numValidMonitoredPartitions, _totalNumPartitions, validPartitionPercent * 100, _sampleExtrapolations.size());
 
       case TRAINING:
-        return String.format("{state: %s%s, NumValidWindows: (%d/%d) (%.3f%%) , NumValidPartitions: %d/%d (%.3f%%), FlawedPartitions: %d}",
-                             _loadMonitorTaskRunnerState, trained, _monitoredWindows.size(), _numValidWindows, 
-                             validWindowPercent * 100, _numValidMonitoredPartitions, _totalNumPartitions, validPartitionPercent * 100, 
+        return String.format("{state: %s, NumValidWindows: (%d/%d) (%.3f%%) , NumValidPartitions: %d/%d (%.3f%%), FlawedPartitions: %d}",
+                             _loadMonitorTaskRunnerState, _monitoredWindows.size(), _numValidWindows,
+                             validWindowPercent * 100, _numValidMonitoredPartitions, _totalNumPartitions, validPartitionPercent * 100,
                              _sampleExtrapolations.size());
 
       case LOADING:
-        return String.format("{state: %s%s, LoadingProgress: %.3f%%, NumValidWindows: (%d/%d): (%.3f%%), "
+        return String.format("{state: %s, LoadingProgress: %.3f%%, NumValidWindows: (%d/%d): (%.3f%%), "
                                  + "NumValidPartitions: %d/%d (%.3f%%), FlawedPartitions: %d}",
-                             _loadMonitorTaskRunnerState, trained, _loadingProgress * 100, _numValidWindows,
+                             _loadMonitorTaskRunnerState, _loadingProgress * 100, _numValidWindows,
                              _monitoredWindows.size(), validWindowPercent * 100,
                              _numValidMonitoredPartitions, _totalNumPartitions, validPartitionPercent * 100,
                              _sampleExtrapolations.size());
@@ -277,9 +263,5 @@ public class LoadMonitorState {
 
   public Map<TopicPartition, List<SampleExtrapolation>> sampleExtrapolations() {
     return _sampleExtrapolations;
-  }
-
-  public LinearRegressionModelParameters.LinearRegressionModelState detailTrainingProgress() {
-    return ModelParameters.linearRegressionModelState();
   }
 }

@@ -11,8 +11,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * The async runnable for {@link KafkaCruiseControl#addBrokers(Collection, boolean, boolean, List, 
- * ModelCompletenessRequirements, com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)} 
+ * The async runnable for {@link KafkaCruiseControl#addBrokers(Collection, boolean, boolean, List,
+ * ModelCompletenessRequirements, com.linkedin.kafka.cruisecontrol.async.progress.OperationProgress)}
  */
 class AddBrokerRunnable extends OperationRunnable<GoalOptimizer.OptimizerResult> {
   private final Collection<Integer> _brokerIds;
@@ -21,11 +21,11 @@ class AddBrokerRunnable extends OperationRunnable<GoalOptimizer.OptimizerResult>
   private final List<String> _goals;
   private final ModelCompletenessRequirements _modelCompletenessRequirements;
 
-  AddBrokerRunnable(KafkaCruiseControl kafkaCruiseControl, 
+  AddBrokerRunnable(KafkaCruiseControl kafkaCruiseControl,
                     OperationFuture<GoalOptimizer.OptimizerResult> future,
-                    Collection<Integer> brokerIds, 
-                    boolean dryRun, 
-                    boolean throttleAddedBrokers, 
+                    Collection<Integer> brokerIds,
+                    boolean dryRun,
+                    boolean throttleAddedBrokers,
                     List<String> goals,
                     ModelCompletenessRequirements modelCompletenessRequirements) {
     super(kafkaCruiseControl, future);

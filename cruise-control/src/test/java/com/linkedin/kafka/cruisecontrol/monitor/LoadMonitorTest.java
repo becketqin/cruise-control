@@ -14,7 +14,7 @@ import com.linkedin.kafka.cruisecontrol.common.MetadataClient;
 import com.linkedin.kafka.cruisecontrol.common.Resource;
 import com.linkedin.kafka.cruisecontrol.config.KafkaCruiseControlConfig;
 import com.linkedin.kafka.cruisecontrol.model.ClusterModel;
-import com.linkedin.kafka.cruisecontrol.model.ModelParameters;
+import com.linkedin.kafka.cruisecontrol.model.KafkaMetricEstimator;
 import com.linkedin.kafka.cruisecontrol.monitor.metricdefinition.KafkaMetricDef;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.NoopSampleStore;
 import com.linkedin.kafka.cruisecontrol.monitor.sampling.PartitionEntity;
@@ -428,7 +428,7 @@ public class LoadMonitorTest {
 
     KafkaPartitionMetricSampleAggregator aggregator = loadMonitor.partitionSampleAggregator();
 
-    ModelParameters.init(config);
+    KafkaMetricEstimator.init(config);
     loadMonitor.startUp();
     while (loadMonitor.state(new OperationProgress()).state() != LoadMonitorTaskRunner.LoadMonitorTaskRunnerState.RUNNING) {
       try {

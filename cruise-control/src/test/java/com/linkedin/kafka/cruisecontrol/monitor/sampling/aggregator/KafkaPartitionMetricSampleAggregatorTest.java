@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import static com.linkedin.kafka.cruisecontrol.model.LinearRegressionModelParameters.ModelCoefficient.LEADER_BYTES_OUT;
+import static com.linkedin.cruisecontrol.model.regression.LinearRegression.ModelCoefficient.LEADER_BYTES_OUT;
 import static com.linkedin.kafka.cruisecontrol.monitor.metricdefinition.KafkaMetricDef.CPU_USAGE;
 import static com.linkedin.kafka.cruisecontrol.monitor.metricdefinition.KafkaMetricDef.DISK_USAGE;
 import static com.linkedin.kafka.cruisecontrol.monitor.metricdefinition.KafkaMetricDef.LEADER_BYTES_IN;

@@ -9,7 +9,7 @@ package com.linkedin.kafka.cruisecontrol.async.progress;
  */
 public class Pending implements OperationStep {
   private volatile boolean _done = false;
-  
+
   @Override
   public String name() {
     return "PENDING";
@@ -24,7 +24,7 @@ public class Pending implements OperationStep {
   public String description() {
     return "Operation enqueued, waiting to be executed.";
   }
-  
+
   public void done() {
     _done = true;
   }
