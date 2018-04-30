@@ -9,6 +9,7 @@ import com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance;
 import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.asbtractimpl.AbstractGoal;
 import com.linkedin.kafka.cruisecontrol.common.Statistic;
 import com.linkedin.kafka.cruisecontrol.exception.OptimizationFailureException;
 import com.linkedin.kafka.cruisecontrol.model.Broker;
@@ -31,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.ACCEPT;
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.REPLICA_REJECT;
-import static com.linkedin.kafka.cruisecontrol.analyzer.ActionType.REPLICA_SWAP;
 import static com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils.EPSILON;
 
 

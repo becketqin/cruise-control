@@ -1,15 +1,17 @@
 /*
- * Copyright 2017 LinkedIn Corp. Licensed under the BSD 2-Clause License (the "License"). See License in the project root for license information.
  *
+ *  * Copyright 2018 LinkedIn Corp. Licensed under the BSD 2-Clause License (the "License"). See License in the project root for license information.
+ *  
  */
 
-package com.linkedin.kafka.cruisecontrol.analyzer.goals;
+package com.linkedin.kafka.cruisecontrol.analyzer.goals.asbtractimpl;
 
 import com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance;
 import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
 import com.linkedin.kafka.cruisecontrol.analyzer.ActionType;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.Goal;
 import com.linkedin.kafka.cruisecontrol.config.KafkaCruiseControlConfig;
 import com.linkedin.kafka.cruisecontrol.exception.OptimizationFailureException;
 import com.linkedin.kafka.cruisecontrol.model.Broker;
@@ -250,7 +252,7 @@ public abstract class AbstractGoal implements Goal {
    * @param optimizedGoals Optimized goals.
    * @return True the swapped in replica if succeeded, null otherwise.
    */
-  Replica maybeApplySwapAction(ClusterModel clusterModel,
+  protected Replica maybeApplySwapAction(ClusterModel clusterModel,
                                Replica sourceReplica,
                                SortedSet<Replica> candidateReplicasToSwapWith,
                                Set<Goal> optimizedGoals) {

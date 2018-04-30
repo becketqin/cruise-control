@@ -10,6 +10,7 @@ import com.linkedin.kafka.cruisecontrol.analyzer.ActionType;
 import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.asbtractimpl.AbstractGoal;
 import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.BrokerAndSortedReplicas;
 import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.ReplicaWrapper;
 import com.linkedin.kafka.cruisecontrol.common.Statistic;
