@@ -7,9 +7,9 @@ package com.linkedin.kafka.cruisecontrol.analyzer.goals.internals;
 
 import com.linkedin.kafka.cruisecontrol.model.Broker;
 import com.linkedin.kafka.cruisecontrol.model.Replica;
-import java.util.Comparator;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import java.util.function.Function;
 
 
 /**
@@ -17,23 +17,23 @@ import java.util.TreeSet;
  */
 public class BrokerAndSortedReplicas {
   private final Broker _broker;
-  private final NavigableSet<Replica> sortedReplicas;
+  private final NavigableSet<ReplicaWrapper> _sortedReplicas;
 
-  public BrokerAndSortedReplicas(Broker broker, Comparator<Replica> comparator) {
+  public BrokerAndSortedReplicas(Broker broker, Function<Replica, Double> scoreFunction) {
     _broker = broker;
-    sortedReplicas = new TreeSet<>((r1, r2) -> {
-      int result = comparator.compare(r1, r2);
-      return result == 0 ? r1.compareTo(r2) : result;
+    _sortedReplicas = new TreeSet<>();
+    broker.replicas().forEach(r -> {
+      double score = scoreFunction.apply(r);
+      _sortedReplicas.add(new ReplicaWrapper(r, score));
     });
-    sortedReplicas.addAll(broker.replicas());
   }
 
   public Broker broker() {
     return _broker;
   }
 
-  public NavigableSet<Replica> sortedReplicas() {
-    return sortedReplicas;
+  public NavigableSet<ReplicaWrapper> sortedReplicas() {
+    return _sortedReplicas;
   }
 
   @Override

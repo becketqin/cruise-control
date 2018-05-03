@@ -5,6 +5,8 @@
 package com.linkedin.kafka.cruisecontrol.analyzer.kafkaassigner;
 
 import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.BrokerAndSortedReplicas;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.DoubleWrapper;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.ReplicaWrapper;
 import com.linkedin.kafka.cruisecontrol.common.Resource;
 import com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
@@ -25,7 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.StringJoiner;
@@ -94,12 +95,10 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
     Comparator<BrokerAndSortedReplicas> brokerComparator =
         Comparator.comparingDouble((ToDoubleFunction<BrokerAndSortedReplicas>) this::diskUsage)
                   .thenComparingInt(bs -> bs.broker().id());
-    // Create replica comparator in ascending order of replica disk usage.
-    Comparator<Replica> replicaComparator = Comparator.comparingDouble(this::replicaSize).thenComparing(r -> r);
 
     // create a sorted set for all the brokers.
     SortedSet<BrokerAndSortedReplicas> allBrokers = new TreeSet<>(brokerComparator);
-    clusterModel.healthyBrokers().forEach(b -> allBrokers.add(new BrokerAndSortedReplicas(b, replicaComparator)));
+    clusterModel.healthyBrokers().forEach(b -> allBrokers.add(new BrokerAndSortedReplicas(b, this::replicaSize)));
 
     boolean improved;
     int numIterations = 0;
@@ -254,7 +253,8 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
         sizeToChange > 0 ? sortedReplicasToSwap.iterator() : sortedReplicasToSwap.descendingIterator();
 
     while (toSwapIter.hasNext()) {
-      Replica replicaToSwap = toSwapIter.next().replica();
+      ReplicaWrapper replicaWrapperToSwap = toSwapIter.next();
+      Replica replicaToSwap = replicaWrapperToSwap.replica();
       if (excludedTopics.contains(replicaToSwap.topicPartition().topic())) {
         continue;
       }
@@ -328,19 +328,20 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
       // Find a replica that is eligible for swap.
       LOG.trace("replicaToSwap: {}(size={}), targetSize={}, minSize={}, maxSize={}",
                 replicaToSwap, dWrap(replicaSize(replicaToSwap)), dWrap(targetSize), dWrap(minSize), dWrap(maxSize));
-      Replica replicaToSwapWith = sortedReplicasToSwapWith.isEmpty() ? null :
-                                  findReplicaToSwapWith(replicaToSwap, sortedReplicasToSwapWith, targetSize, minSize, maxSize, clusterModel);
-      if (replicaToSwapWith != null) {
+      ReplicaWrapper replicaWrapperToSwapWith = sortedReplicasToSwapWith.isEmpty() ? null :
+          findReplicaToSwapWith(replicaToSwap, sortedReplicasToSwapWith, targetSize, minSize, maxSize, clusterModel);
+      if (replicaWrapperToSwapWith != null) {
         LOG.debug("Found replica to swap. Swapping {}({}) on broker {}({}) and {}({}) on broker {}({})",
                   replicaToSwap.topicPartition(), dWrap(replicaSize(replicaToSwap)), toSwap.broker().id(),
-                  dWrap(brokerSize(toSwap)), replicaToSwapWith.topicPartition(), dWrap(replicaSize(replicaToSwapWith)),
-                  toSwapWith.broker().id(), dWrap(brokerSize(toSwapWith)));
-        clusterModel.relocateReplica(replicaToSwapWith.topicPartition(), toSwapWith.broker().id(), toSwap.broker().id());
+                  dWrap(brokerSize(toSwap)), replicaWrapperToSwapWith.replica().topicPartition(),
+                  dWrap(replicaSize(replicaWrapperToSwapWith.replica())), toSwapWith.broker().id(),
+                  dWrap(brokerSize(toSwapWith)));
+        clusterModel.relocateReplica(replicaWrapperToSwapWith.replica().topicPartition(), toSwapWith.broker().id(), toSwap.broker().id());
         clusterModel.relocateReplica(replicaToSwap.topicPartition(), toSwap.broker().id(), toSwapWith.broker().id());
-        toSwap.sortedReplicas().remove(replicaToSwap);
-        toSwap.sortedReplicas().add(replicaToSwapWith);
-        toSwapWith.sortedReplicas().remove(replicaToSwapWith);
-        toSwapWith.sortedReplicas().add(replicaToSwap);
+        toSwap.sortedReplicas().remove(replicaWrapperToSwap);
+        toSwap.sortedReplicas().add(replicaWrapperToSwapWith);
+        toSwapWith.sortedReplicas().remove(replicaWrapperToSwapWith);
+        toSwapWith.sortedReplicas().add(replicaWrapperToSwap);
         return true;
       }
     }
@@ -361,7 +362,7 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
    *
    * @return the replica that can be swapped with the given replica, null otherwise.
    */
-  Replica findReplicaToSwapWith(Replica replica,
+  ReplicaWrapper findReplicaToSwapWith(Replica replica,
                                 NavigableSet<ReplicaWrapper> sortedReplicasToSearch,
                                 double targetSize,
                                 double minSize,
@@ -421,12 +422,12 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
         candidateReplica = high;
       } else {
         // pick a replica closer to the target.
-        double lowDiff = targetSize - low.size();
-        double highDiff = high.size() - targetSize;
+        double lowDiff = targetSize - low.score();
+        double highDiff = high.score() - targetSize;
         candidateReplica = lowDiff <= highDiff ? low : high;
       }
       if (canSwap(replica, candidateReplica.replica(), clusterModel)) {
-        return candidateReplica.replica();
+        return candidateReplica;
       }
     }
   }
@@ -477,9 +478,9 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
    */
   private NavigableSet<ReplicaWrapper> sortReplicasAscend(BrokerAndSortedReplicas bas, Set<String> excludedTopics) {
     NavigableSet<ReplicaWrapper> sortedReplicas = new TreeSet<>();
-    bas.sortedReplicas().forEach(r -> {
-      if (!excludedTopics.contains(r.topicPartition().topic())) {
-        sortedReplicas.add(new ReplicaWrapper(r, replicaSize(r)));
+    bas.sortedReplicas().forEach(rw -> {
+      if (!excludedTopics.contains(rw.replica().topicPartition().topic())) {
+        sortedReplicas.add(rw);
       }
     });
     return sortedReplicas;
@@ -487,9 +488,9 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
 
   private NavigableSet<ReplicaWrapper> sortedFollowerReplicas(BrokerAndSortedReplicas bas, Set<String> excludedTopics) {
     NavigableSet<ReplicaWrapper> sortedFollowers = new TreeSet<>();
-    bas.sortedReplicas().forEach(r -> {
-      if (!r.isLeader() || excludedTopics.contains(r.topicPartition().topic())) {
-        sortedFollowers.add(new ReplicaWrapper(r, replicaSize(r)));
+    bas.sortedReplicas().forEach(rw -> {
+      if (!rw.replica().isLeader() && !excludedTopics.contains(rw.replica().topicPartition().topic())) {
+        sortedFollowers.add(rw);
       }
     });
     return sortedFollowers;
@@ -569,85 +570,5 @@ public class KafkaAssignerDiskUsageDistributionGoal implements Goal {
     }
   }
 
-  /**
-   * A class that helps host partition and its
-   * package private for unit tests.
-   */
-  static class ReplicaWrapper implements Comparable<ReplicaWrapper> {
-    private final Replica _replica;
-    private final double _size;
-
-    ReplicaWrapper(Replica replica, double size) {
-      _replica = replica;
-      _size = size;
-    }
-
-    private double size() {
-      return _size;
-    }
-
-    private Replica replica() {
-      return _replica;
-    }
-
-    @Override
-    public int compareTo(ReplicaWrapper o) {
-      if (o == null) {
-        throw new IllegalArgumentException("Cannot compare to a null object.");
-      }
-      int result = Double.compare(this.size(), o.size());
-      if (result != 0) {
-        return result;
-      } else {
-        if (this.replica() == Replica.MAX_REPLICA || o.replica() == Replica.MIN_REPLICA) {
-          return 1;
-        } else if (this.replica() == Replica.MIN_REPLICA || o.replica() == Replica.MAX_REPLICA) {
-          return -1;
-        } else {
-          return this.replica().compareTo(o.replica());
-        }
-      }
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj != null && obj instanceof ReplicaWrapper && ((ReplicaWrapper) obj).size() == _size
-          && ((ReplicaWrapper) obj).replica().equals(_replica);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(_replica, _size);
-    }
-
-    private static ReplicaWrapper greaterThanOrEqualsTo(double size) {
-      return new ReplicaWrapper(Replica.MIN_REPLICA, size);
-    }
-
-    private static ReplicaWrapper greaterThan(double size) {
-      return new ReplicaWrapper(Replica.MAX_REPLICA, size);
-    }
-
-    private static ReplicaWrapper lessThanOrEqualsTo(double size) {
-      return new ReplicaWrapper(Replica.MAX_REPLICA, size);
-    }
-
-    private static ReplicaWrapper lessThan(double size) {
-      return new ReplicaWrapper(Replica.MIN_REPLICA, size);
-    }
-  }
-
   // Thin wrapper around double for printing purpose.
-  private static class DoubleWrapper {
-    double _value;
-
-    private DoubleWrapper(double value) {
-      _value = value;
-    }
-
-    @Override
-    public String toString() {
-      return Double.toString(_value);
-    }
-  }
 }

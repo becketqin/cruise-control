@@ -11,6 +11,7 @@ import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
 import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.BrokerAndSortedReplicas;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.internals.ReplicaWrapper;
 import com.linkedin.kafka.cruisecontrol.common.Statistic;
 import com.linkedin.kafka.cruisecontrol.exception.OptimizationFailureException;
 import com.linkedin.kafka.cruisecontrol.model.Broker;
@@ -198,7 +199,7 @@ public class ReplicaDistributionGoal extends AbstractGoal {
     _brokerAndReplicasMap = new HashMap<>();
 
     for (Broker broker : clusterModel.brokers()) {
-      BrokerAndSortedReplicas bas = new BrokerAndSortedReplicas(broker, broker.replicaComparator(DISK));
+      BrokerAndSortedReplicas bas = new BrokerAndSortedReplicas(broker, r -> r.load().expectedUtilizationFor(DISK));
       _brokerAndReplicasMap.put(broker.id(), bas);
     }
 
@@ -341,9 +342,10 @@ public class ReplicaDistributionGoal extends AbstractGoal {
 
     BrokerAndSortedReplicas sourceBas = _brokerAndReplicasMap.get(broker.id());
     // Get the replicas to rebalance. Replicas are sorted from smallest to largest disk usage.
-    List<Replica> replicasToMove = new ArrayList<>(sourceBas.sortedReplicas());
+    List<ReplicaWrapper> replicasToMove = new ArrayList<>(sourceBas.sortedReplicas());
     // Now let's move things around.
-    for (Replica replica : replicasToMove) {
+    for (ReplicaWrapper replicaWrapper : replicasToMove) {
+      Replica replica = replicaWrapper.replica();
       if (shouldExclude(replica, excludedTopics)) {
         continue;
       }
@@ -354,8 +356,8 @@ public class ReplicaDistributionGoal extends AbstractGoal {
       if (b != null) {
         // Update the global sorted broker set to reflect the replica movement.
         BrokerAndSortedReplicas destBas = _brokerAndReplicasMap.get(broker.id());
-        destBas.sortedReplicas().add(replica);
-        sourceBas.sortedReplicas().remove(replica);
+        destBas.sortedReplicas().add(replicaWrapper);
+        sourceBas.sortedReplicas().remove(replicaWrapper);
 
         if (broker.replicas().size() <= (broker.isAlive() ? _balanceUpperLimit : 0)) {
           return false;
@@ -395,9 +397,10 @@ public class ReplicaDistributionGoal extends AbstractGoal {
       // Remove the source brokerAndReplicas from the sorted broker set.
       BrokerAndSortedReplicas sourceBas = _brokerAndReplicasMap.get(sourceBroker.id());
 
-      Iterator<Replica> sourceReplicaIter = sourceBas.sortedReplicas().iterator();
+      Iterator<ReplicaWrapper> sourceReplicaIter = sourceBas.sortedReplicas().iterator();
       while (sourceReplicaIter.hasNext()) {
-        Replica replica = sourceReplicaIter.next();
+        ReplicaWrapper replicaWrapper = sourceReplicaIter.next();
+        Replica replica = replicaWrapper.replica();
         if (shouldExclude(replica, excludedTopics)) {
           continue;
         }
@@ -408,7 +411,7 @@ public class ReplicaDistributionGoal extends AbstractGoal {
         if (b != null) {
           // Update the BrokerAndSortedReplicas in the global sorted broker set to ensure consistency.
           sourceReplicaIter.remove();
-          destBas.sortedReplicas().add(replica);
+          destBas.sortedReplicas().add(replicaWrapper);
           if (broker.replicas().size() >= (broker.isAlive() ? _balanceLowerLimit : 0)) {
             return false;
           }
