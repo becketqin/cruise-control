@@ -39,7 +39,7 @@ public class DiskCapacityGoal extends CapacityGoal {
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
     // Leadership movement won't cause disk utilization change.
-    return action.balancingAction() == ActionType.LEADERSHIP_MOVEMENT ? ACCEPT : super.actionAcceptance(action, clusterModel);
+    return action.actionType() == ActionType.LEADERSHIP_MOVEMENT ? ACCEPT : super.actionAcceptance(action, clusterModel);
   }
 
   @Override

@@ -530,6 +530,10 @@ public class ClusterModel implements Serializable {
     _brokers.forEach(b -> b.untrackSortedReplicas(sortName));
   }
 
+  public void untrackAllSortedReplicas() {
+    _brokers.forEach(Broker::untrackAllSortedReplicas);
+  }
+
   /**
    * Clear the content and structure of the cluster.
    */

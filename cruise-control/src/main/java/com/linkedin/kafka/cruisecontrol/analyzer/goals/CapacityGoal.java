@@ -5,6 +5,7 @@
 
 package com.linkedin.kafka.cruisecontrol.analyzer.goals;
 
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.asbtractimpl.AbstractGoal;
 import com.linkedin.kafka.cruisecontrol.common.Resource;
 import com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance;
 import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
@@ -19,7 +20,10 @@ import com.linkedin.kafka.cruisecontrol.model.Load;
 import com.linkedin.kafka.cruisecontrol.model.Replica;
 
 import com.linkedin.kafka.cruisecontrol.model.ReplicaSortFunctionFactory;
+import com.linkedin.kafka.cruisecontrol.model.ReplicaWrapper;
 import com.linkedin.kafka.cruisecontrol.monitor.ModelCompletenessRequirements;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
@@ -56,15 +60,6 @@ public abstract class CapacityGoal extends AbstractGoal {
   protected abstract Resource resource();
 
   /**
-   * @deprecated
-   * Please use {@link #actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
-
-  /**
    * Check whether the given action is acceptable by this goal. An action is acceptable by a goal if it satisfies
    * requirements of the goal. Requirements(hard goal): Capacity.
    *
@@ -75,7 +70,7 @@ public abstract class CapacityGoal extends AbstractGoal {
    *   (2) Check if leadership CPU movement is acceptable: In reality, CPU movement carries only a fraction of
    * leader's CPU load.
    * To optimize CC performance, we avoid calculation of the expected leadership CPU utilization, and assume that
-   * if (action.balancingAction() == ActionType.LEADERSHIP_MOVEMENT &amp;&amp; resource() == Resource.CPU),
+   * if (action.actionType() == ActionType.LEADERSHIP_MOVEMENT &amp;&amp; resource() == Resource.CPU),
    * then the expected leadership CPU utilization would be the full CPU utilization of the leader.
    * <p>
    * ## Replica Movement: impacts any resource.
@@ -91,7 +86,7 @@ public abstract class CapacityGoal extends AbstractGoal {
     Replica sourceReplica = clusterModel.broker(action.sourceBrokerId()).replica(action.topicPartition());
     Broker destinationBroker = clusterModel.broker(action.destinationBrokerId());
 
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case REPLICA_SWAP:
         Replica destinationReplica = destinationBroker.replica(action.destinationTopicPartition());
         return isSwapAcceptableForCapacity(sourceReplica, destinationReplica) ? ACCEPT : REPLICA_REJECT;
@@ -99,7 +94,7 @@ public abstract class CapacityGoal extends AbstractGoal {
       case LEADERSHIP_MOVEMENT:
         return isMovementAcceptableForCapacity(sourceReplica, destinationBroker) ? ACCEPT : REPLICA_REJECT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -135,7 +130,7 @@ public abstract class CapacityGoal extends AbstractGoal {
     Replica sourceReplica = clusterModel.broker(action.sourceBrokerId()).replica(action.topicPartition());
     Broker destinationBroker = clusterModel.broker(action.destinationBrokerId());
     // To optimize CC performance, we avoid calculation of the expected leadership CPU utilization, and assume that
-    // if (action.balancingAction() == ActionType.LEADERSHIP_MOVEMENT && resource() == Resource.CPU),
+    // if (action.actionType() == ActionType.LEADERSHIP_MOVEMENT && resource() == Resource.CPU),
     // then the expected leadership CPU utilization would be the full CPU utilization of the leader.
     return isMovementAcceptableForCapacity(sourceReplica, destinationBroker);
   }
@@ -161,7 +156,8 @@ public abstract class CapacityGoal extends AbstractGoal {
    * @param excludedTopics The topics that should be excluded from the optimization proposals.
    */
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) throws OptimizationFailureException {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics)
+      throws OptimizationFailureException {
     // Sanity Check -- i.e. not enough resources.
     Load recentClusterLoad = clusterModel.load();
 
@@ -198,8 +194,6 @@ public abstract class CapacityGoal extends AbstractGoal {
     // Sanity check: No self-healing eligible replica should remain at a decommissioned broker.
     AnalyzerUtils.ensureNoReplicaOnDeadBrokers(clusterModel);
     finish();
-    clusterModel.untrackSortedReplicas(sortName());
-    clusterModel.untrackSortedReplicas(sortNameByLeader());
   }
 
   /**
@@ -313,7 +307,11 @@ public abstract class CapacityGoal extends AbstractGoal {
       // Move replicas that are sorted in descending order of preference to relocate (preference is based on
       // utilization) until the source broker utilization gets under the capacity limit. If the capacity limit cannot
       // be satisfied, throw an exception.
-      for (Replica replica : broker.trackedSortedReplicas(sortName()).reverselySortedReplicas()) {
+      clusterModel.trackSortedReplicas(currentResource.name(),
+                                       ReplicaSortFunctionFactory.prioritizeImmigrants(),
+                                       ReplicaSortFunctionFactory.sortByMetricGroupValue(currentResource.name()));
+      for (ReplicaWrapper rw : new ArrayList<>(broker.trackedSortedReplicas(currentResource.name()).sortedReplicas())) {
+        Replica replica = rw.replica();
         if (shouldExclude(replica, excludedTopics)) {
           continue;
         }

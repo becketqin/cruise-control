@@ -12,12 +12,16 @@ import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
 import com.linkedin.kafka.cruisecontrol.analyzer.ActionType;
 import com.linkedin.kafka.cruisecontrol.model.ClusterModel;
 import com.linkedin.kafka.cruisecontrol.monitor.ModelCompletenessRequirements;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.ACCEPT;
+import static com.linkedin.kafka.cruisecontrol.analyzer.ActionType.*;
 
 
 public class DiskUsageDistributionGoal extends ResourceDistributionGoal {
-
+  private final Set<ActionType> _actionTypes = new HashSet<>(Arrays.asList(REPLICA_MOVEMENT, REPLICA_SWAP));
   /**
    * Constructor for Resource Distribution Goal.
    */
@@ -40,12 +44,12 @@ public class DiskUsageDistributionGoal extends ResourceDistributionGoal {
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
     // Leadership movement won't cause disk utilization change.
-    return action.balancingAction() == ActionType.LEADERSHIP_MOVEMENT ? ACCEPT : super.actionAcceptance(action, clusterModel);
+    return action.actionType() == ActionType.LEADERSHIP_MOVEMENT ? ACCEPT : super.actionAcceptance(action, clusterModel);
   }
 
   @Override
-  public String name() {
-    return DiskUsageDistributionGoal.class.getSimpleName();
+  protected Set<ActionType> possibleActionTypes() {
+    return _actionTypes;
   }
 
   @Override

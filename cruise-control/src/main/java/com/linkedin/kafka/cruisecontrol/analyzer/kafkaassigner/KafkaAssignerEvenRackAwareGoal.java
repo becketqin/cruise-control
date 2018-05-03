@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.ACCEPT;
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.REPLICA_REJECT;
-import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.BROKER_REJECT;
+import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.DEST_BROKER_REJECT;
 
 
 public class KafkaAssignerEvenRackAwareGoal implements Goal {
@@ -366,12 +366,12 @@ public class KafkaAssignerEvenRackAwareGoal implements Goal {
    *
    * @param action Action to be checked for acceptance.
    * @param clusterModel The state of the cluster.
-   * {@link ActionAcceptance#BROKER_REJECT} if the action is rejected due to violating rack awareness in the destination
+   * {@link ActionAcceptance#DEST_BROKER_REJECT} if the action is rejected due to violating rack awareness in the destination
    * broker after moving source replica to destination broker, {@link ActionAcceptance#REPLICA_REJECT} otherwise.
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case LEADERSHIP_MOVEMENT:
         return ACCEPT;
       case REPLICA_MOVEMENT:
@@ -379,10 +379,10 @@ public class KafkaAssignerEvenRackAwareGoal implements Goal {
         if (isReplicaMoveViolateRackAwareness(clusterModel,
                                               c -> c.broker(action.sourceBrokerId()).replica(action.topicPartition()),
                                               c -> c.broker(action.destinationBrokerId()))) {
-          return BROKER_REJECT;
+          return DEST_BROKER_REJECT;
         }
 
-        if (action.balancingAction() == ActionType.REPLICA_SWAP
+        if (action.actionType() == ActionType.REPLICA_SWAP
             && isReplicaMoveViolateRackAwareness(clusterModel,
                                                  c -> c.broker(action.destinationBrokerId()).replica(action.destinationTopicPartition()),
                                                  c -> c.broker(action.sourceBrokerId()))) {
@@ -390,7 +390,7 @@ public class KafkaAssignerEvenRackAwareGoal implements Goal {
         }
         return ACCEPT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 

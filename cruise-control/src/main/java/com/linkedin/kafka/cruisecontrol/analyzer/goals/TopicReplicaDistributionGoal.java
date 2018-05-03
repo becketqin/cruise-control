@@ -9,6 +9,7 @@ import com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance;
 import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.asbtractimpl.AbstractGoal;
 import com.linkedin.kafka.cruisecontrol.common.Statistic;
 import com.linkedin.kafka.cruisecontrol.exception.OptimizationFailureException;
 import com.linkedin.kafka.cruisecontrol.model.Broker;
@@ -31,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.ACCEPT;
 import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.REPLICA_REJECT;
-import static com.linkedin.kafka.cruisecontrol.analyzer.ActionType.REPLICA_SWAP;
 import static com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils.EPSILON;
 
 
@@ -60,15 +60,6 @@ public class TopicReplicaDistributionGoal extends AbstractGoal {
   }
 
   /**
-   * @deprecated
-   * Please use {@link #actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
-
-  /**
    * Check whether given action is acceptable by this goal. An action is acceptable if the number of topic replicas
    * at the source broker are more than the number of topic replicas at the destination (remote) broker.
    *
@@ -79,7 +70,7 @@ public class TopicReplicaDistributionGoal extends AbstractGoal {
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case REPLICA_SWAP:
         return ACCEPT;
       case LEADERSHIP_MOVEMENT:
@@ -90,7 +81,7 @@ public class TopicReplicaDistributionGoal extends AbstractGoal {
 
         return numRemoteTopicReplicas < numLocalTopicReplicas ? ACCEPT : REPLICA_REJECT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -159,7 +150,7 @@ public class TopicReplicaDistributionGoal extends AbstractGoal {
    * @param excludedTopics The topics that should be excluded from the optimization proposals.
    */
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics) {
     _numRebalancedTopics = 0;
     _topicsToRebalance = new ArrayList<>(clusterModel.topics());
     if (clusterModel.deadBrokers().isEmpty()) {

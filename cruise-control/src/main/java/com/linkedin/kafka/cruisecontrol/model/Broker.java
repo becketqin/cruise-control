@@ -333,6 +333,13 @@ public class Broker implements Serializable, Comparable<Broker> {
     _sortedReplicas.remove(sortName);
   }
 
+  /**
+   * Untrack all the sorted replicas to release memory.
+   */
+  void untrackAllSortedReplicas() {
+    _sortedReplicas.clear();
+  }
+
   private void updateSortedReplicas(Replica replica) {
     _sortedReplicas.values().forEach(sr -> {
       sr.remove(replica);

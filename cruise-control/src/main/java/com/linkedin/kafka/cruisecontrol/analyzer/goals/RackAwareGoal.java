@@ -10,6 +10,7 @@ import com.linkedin.kafka.cruisecontrol.analyzer.AnalyzerUtils;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingAction;
 import com.linkedin.kafka.cruisecontrol.analyzer.ActionType;
+import com.linkedin.kafka.cruisecontrol.analyzer.goals.asbtractimpl.AbstractGoal;
 import com.linkedin.kafka.cruisecontrol.exception.OptimizationFailureException;
 import com.linkedin.kafka.cruisecontrol.model.Broker;
 import com.linkedin.kafka.cruisecontrol.model.ClusterModel;
@@ -28,9 +29,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.ACCEPT;
-import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.REPLICA_REJECT;
-import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.BROKER_REJECT;
+import static com.linkedin.kafka.cruisecontrol.analyzer.ActionAcceptance.*;
 
 
 /**
@@ -54,14 +53,6 @@ public class RackAwareGoal extends AbstractGoal {
     _balancingConstraint = constraint;
   }
 
-  /**
-   * @deprecated
-   * Please use {@link #actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
 
   /**
    * Check whether given action is acceptable by this goal. An action is acceptable by a goal if it satisfies
@@ -70,12 +61,12 @@ public class RackAwareGoal extends AbstractGoal {
    * @param action Action to be checked for acceptance.
    * @param clusterModel The state of the cluster.
    * @return {@link ActionAcceptance#ACCEPT} if the action is acceptable by this goal,
-   * {@link ActionAcceptance#BROKER_REJECT} if the action is rejected due to violating rack awareness in the destination
-   * broker after moving source replica to destination broker, {@link ActionAcceptance#REPLICA_REJECT} otherwise.
+   * {@link ActionAcceptance#DEST_BROKER_REJECT} if the action is rejected due to violating rack awareness in the destination
+   * broker after moving source replica to destination broker, {@link ActionAcceptance#ACCEPT} otherwise.
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case LEADERSHIP_MOVEMENT:
         return ACCEPT;
       case REPLICA_MOVEMENT:
@@ -83,18 +74,18 @@ public class RackAwareGoal extends AbstractGoal {
         if (isReplicaMoveViolateRackAwareness(clusterModel,
                                               c -> c.broker(action.sourceBrokerId()).replica(action.topicPartition()),
                                               c -> c.broker(action.destinationBrokerId()))) {
-          return BROKER_REJECT;
+          return DEST_BROKER_REJECT;
         }
 
-        if (action.balancingAction() == ActionType.REPLICA_SWAP
+        if (action.actionType() == ActionType.REPLICA_SWAP
             && isReplicaMoveViolateRackAwareness(clusterModel,
                                                  c -> c.broker(action.destinationBrokerId()).replica(action.destinationTopicPartition()),
                                                  c -> c.broker(action.sourceBrokerId()))) {
-          return REPLICA_REJECT;
+          return SRC_BROKER_REJECT;
         }
         return ACCEPT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -171,7 +162,8 @@ public class RackAwareGoal extends AbstractGoal {
    * @param excludedTopics The topics that should be excluded from the optimization proposals.
    */
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) throws OptimizationFailureException {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics)
+      throws OptimizationFailureException {
     // Sanity Check: not enough racks to satisfy rack awareness.
     int numHealthyRacks = clusterModel.numHealthyRacks();
     if (!excludedTopics.isEmpty()) {

@@ -284,24 +284,32 @@ public class ExcludedTopicsTest {
                                  Collection<Integer> deadBrokers,
                                  Boolean expectedToOptimize) throws Exception {
     deadBrokers.forEach(id -> clusterModel.setBrokerState(id, Broker.State.DEAD));
+
     return new Object[]{tid, goal(goalClass), excludedTopics, exceptionClass, clusterModel, expectedToOptimize};
   }
 
   private static Goal goal(Class<? extends Goal> goalClass) throws Exception {
     Properties props = KafkaCruiseControlUnitTestUtils.getKafkaCruiseControlProperties();
     props.setProperty(KafkaCruiseControlConfig.MAX_REPLICAS_PER_BROKER_CONFIG, Long.toString(1L));
+    props.setProperty(KafkaCruiseControlConfig.CPU_BALANCE_THRESHOLD_CONFIG, "1.0001");
+    props.setProperty(KafkaCruiseControlConfig.DISK_BALANCE_THRESHOLD_CONFIG, "1.0001");
+    props.setProperty(KafkaCruiseControlConfig.NETWORK_INBOUND_BALANCE_THRESHOLD_CONFIG, "1.0001");
+    props.setProperty(KafkaCruiseControlConfig.NETWORK_OUTBOUND_BALANCE_THRESHOLD_CONFIG, "1.0001");
     BalancingConstraint balancingConstraint = new BalancingConstraint(new KafkaCruiseControlConfig(props));
     balancingConstraint.setResourceBalancePercentage(TestConstants.LOW_BALANCE_PERCENTAGE);
     balancingConstraint.setCapacityThreshold(TestConstants.MEDIUM_CAPACITY_THRESHOLD);
 
+    Goal goal;
     try {
       Constructor<? extends Goal> constructor = goalClass.getDeclaredConstructor(BalancingConstraint.class);
       constructor.setAccessible(true);
-      return constructor.newInstance(balancingConstraint);
+      goal = constructor.newInstance(balancingConstraint);
     } catch (NoSuchMethodException badConstructor) {
       //Try default constructor
-      return goalClass.newInstance();
+      goal = goalClass.newInstance();
     }
+    goal.configure(new KafkaCruiseControlConfig(props).originals());
+    return goal;
   }
 
   // two racks, three brokers, two partitions, one replica.

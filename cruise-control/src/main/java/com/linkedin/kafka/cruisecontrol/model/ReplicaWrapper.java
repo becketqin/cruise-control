@@ -12,8 +12,11 @@ import java.util.function.Function;
  * A class that helps host replica and its score. This class is useful for searching on top of sorted set.
  */
 public class ReplicaWrapper implements Comparable<ReplicaWrapper> {
+  /** The wrapped replica */
   private final Replica _replica;
+  /** The score of the replica */
   private final double _score;
+  /** The optional priority function to prioritize certain replicas in sorting */
   private final Function<Replica, Integer> _priorityFunction;
 
   public ReplicaWrapper(Replica replica, double score, Function<Replica, Integer> priorityFunction) {

@@ -435,9 +435,12 @@ public class GoalOptimizer implements Runnable {
       if (!succeeded) {
         violatedGoalsAfterOptimization.add(goal);
       }
-      logProgress(isSelfHealing, goal.name(), optimizedGoals.size(), goalProposals);
+      logProgress(isSelfHealing, goal.name(), optimizedGoals.size(), goalsByPriority.size(), goalProposals);
       step.done();
-      LOG.debug("Broker level stats after optimization: {}", clusterModel.brokerStats());
+      LOG.debug("Finished optimizing goal {}", goal.name());
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Broker level stats after optimization: {}", clusterModel.brokerStats());
+      }
     }
 
     clusterModel.sanityCheck();
@@ -447,6 +450,7 @@ public class GoalOptimizer implements Runnable {
     }
 
     Set<ExecutionProposal> proposals = AnalyzerUtils.getDiff(initReplicaDistribution, initLeaderDistribution, clusterModel);
+    clusterModel.untrackAllSortedReplicas();
     return new OptimizerResult(statsByGoalPriority,
                                violatedGoalsBeforeOptimization,
                                violatedGoalsAfterOptimization,
@@ -475,8 +479,9 @@ public class GoalOptimizer implements Runnable {
   private void logProgress(boolean isSelfHeal,
                            String goalName,
                            int numOptimizedGoals,
+                           int numTotalGoals,
                            Set<ExecutionProposal> proposals) {
-    LOG.debug("[{}/{}] Generated {} proposals for {}{}.", numOptimizedGoals, _goalsByPriority.size(), proposals.size(),
+    LOG.debug("[{}/{}] Generated {} proposals for {}{}.", numOptimizedGoals, numTotalGoals, proposals.size(),
               isSelfHeal ? "self-healing " : "", goalName);
     LOG.trace("Proposals for {}{}.{}%n", isSelfHeal ? "self-healing " : "", goalName, proposals);
   }

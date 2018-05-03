@@ -193,6 +193,7 @@ public class RandomClusterTest {
   public void testNewBrokers() throws Exception {
     ClusterModel clusterModel = rebalance();
 
+    System.out.println("------------------------------------------------");
     ClusterModel clusterWithNewBroker = new ClusterModel(new ModelGeneration(0, 0L), 1.0);
     for (Broker b : clusterModel.brokers()) {
       clusterWithNewBroker.createRack(b.rack().id());

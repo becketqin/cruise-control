@@ -97,7 +97,7 @@ public class AnalyzerUtils {
    * @param proposal       Proposal to be checked for acceptance.
    * @param clusterModel   The state of the cluster.
    * @return {@link ActionAcceptance#ACCEPT} if the given proposal is acceptable for all the given optimized goals, the
-   * reject flag (e.g. {@link ActionAcceptance#REPLICA_REJECT}, {@link ActionAcceptance#BROKER_REJECT}) otherwise.
+   * reject flag (e.g. {@link ActionAcceptance#REPLICA_REJECT}, {@link ActionAcceptance#DEST_BROKER_REJECT}) otherwise.
    */
   public static ActionAcceptance isProposalAcceptableForOptimizedGoals(Set<Goal> optimizedGoals,
                                                                        BalancingAction proposal,
@@ -105,6 +105,7 @@ public class AnalyzerUtils {
     for (Goal optimizedGoal : optimizedGoals) {
       ActionAcceptance actionAcceptance = optimizedGoal.actionAcceptance(proposal, clusterModel);
       if (actionAcceptance != ACCEPT) {
+//        System.out.println(String.format("Proposal %s rejected by %s", proposal, optimizedGoal.name()));
         return actionAcceptance;
       }
     }
@@ -129,7 +130,7 @@ public class AnalyzerUtils {
     }
   }
 
-  /*
+  /**
    * Return an object that can be further used
    * to encode into JSON
    *
