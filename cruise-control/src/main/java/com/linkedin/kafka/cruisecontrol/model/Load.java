@@ -72,15 +72,7 @@ public class Load implements Serializable {
    * @return A single representative utilization value on a resource.
    */
   public double expectedUtilizationFor(Resource resource) {
-    if (_metricValues.isEmpty()) {
-      return 0.0;
-    }
-    double result = 0;
-    for (MetricInfo info : KafkaMetricDef.resourceToMetricInfo(resource)) {
-      MetricValues valuesForId = _metricValues.valuesFor(info.id());
-      result += resource == Resource.DISK ? valuesForId.latest() : valuesForId.avg();
-    }
-    return max(result, 0.0);
+    return expectedUtilizationFor(resource, _metricValues, false);
   }
 
   /**
@@ -264,5 +256,26 @@ public class Load implements Serializable {
   @Override
   public String toString() {
     return "<Load>" + _metricValues.toString() + "</Load>%n";
+  }
+
+  public static double expectedUtilizationFor(Resource resource,
+                                              AggregatedMetricValues aggregatedMetricValues,
+                                              boolean ignoreMissingMetric) {
+    if (aggregatedMetricValues.isEmpty()) {
+      return 0.0;
+    }
+    double result = 0;
+    for (MetricInfo info : KafkaMetricDef.resourceToMetricInfo(resource)) {
+      MetricValues valuesForId = aggregatedMetricValues.valuesFor(info.id());
+      if (!ignoreMissingMetric && valuesForId == null) {
+        throw new IllegalArgumentException(String.format("The aggregated metric values does not contain metric "
+                                                             + "%s for resource %s.",
+                                                         info, resource.name()));
+      }
+      if (valuesForId != null) {
+        result += resource == Resource.DISK ? valuesForId.latest() : valuesForId.avg();
+      }
+    }
+    return max(result, 0.0);
   }
 }

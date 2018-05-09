@@ -35,6 +35,12 @@ public class ReplicaWrapper implements Comparable<ReplicaWrapper> {
   }
 
   @Override
+  public String toString() {
+    return String.format("(Partition=%s,Broker=%d,Score=%f)",
+                         _replica.topicPartition(), _replica.broker().id(), _score);
+  }
+
+  @Override
   public int compareTo(ReplicaWrapper o) {
     if (o == null) {
       throw new IllegalArgumentException("Cannot compare to a null object.");

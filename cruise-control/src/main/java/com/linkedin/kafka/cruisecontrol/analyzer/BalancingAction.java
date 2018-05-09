@@ -141,7 +141,7 @@ public class BalancingAction {
   /**
    * Get the type of action that provides balancing.
    */
-  public ActionType balancingAction() {
+  public ActionType actionType() {
     return _actionType;
   }
 

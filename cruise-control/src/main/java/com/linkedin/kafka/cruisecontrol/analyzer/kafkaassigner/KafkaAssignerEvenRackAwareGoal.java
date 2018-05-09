@@ -370,7 +370,7 @@ public class KafkaAssignerEvenRackAwareGoal implements Goal {
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case LEADERSHIP_MOVEMENT:
         return ACCEPT;
       case REPLICA_MOVEMENT:
@@ -381,7 +381,7 @@ public class KafkaAssignerEvenRackAwareGoal implements Goal {
           return BROKER_REJECT;
         }
 
-        if (action.balancingAction() == ActionType.REPLICA_SWAP
+        if (action.actionType() == ActionType.REPLICA_SWAP
             && isReplicaMoveViolateRackAwareness(clusterModel,
                                                  c -> c.broker(action.destinationBrokerId()).replica(action.destinationTopicPartition()),
                                                  c -> c.broker(action.sourceBrokerId()))) {
@@ -389,7 +389,7 @@ public class KafkaAssignerEvenRackAwareGoal implements Goal {
         }
         return ACCEPT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 

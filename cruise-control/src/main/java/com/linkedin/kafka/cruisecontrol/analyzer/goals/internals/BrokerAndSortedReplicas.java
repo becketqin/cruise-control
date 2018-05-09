@@ -7,6 +7,9 @@ package com.linkedin.kafka.cruisecontrol.analyzer.goals.internals;
 
 import com.linkedin.kafka.cruisecontrol.model.Broker;
 import com.linkedin.kafka.cruisecontrol.model.Replica;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -17,15 +20,16 @@ import java.util.function.Function;
  */
 public class BrokerAndSortedReplicas {
   private final Broker _broker;
+  private final Map<Replica, ReplicaWrapper> _replicaWrapperMap;
   private final NavigableSet<ReplicaWrapper> _sortedReplicas;
+  private final Function<Replica, Double> _scoreFunction;
 
   public BrokerAndSortedReplicas(Broker broker, Function<Replica, Double> scoreFunction) {
     _broker = broker;
     _sortedReplicas = new TreeSet<>();
-    broker.replicas().forEach(r -> {
-      double score = scoreFunction.apply(r);
-      _sortedReplicas.add(new ReplicaWrapper(r, score));
-    });
+    _replicaWrapperMap = new HashMap<>();
+    _scoreFunction = scoreFunction;
+    broker.replicas().forEach(this::add);
   }
 
   public Broker broker() {
@@ -33,7 +37,35 @@ public class BrokerAndSortedReplicas {
   }
 
   public NavigableSet<ReplicaWrapper> sortedReplicas() {
-    return _sortedReplicas;
+    return Collections.unmodifiableNavigableSet(_sortedReplicas);
+  }
+
+  public void add(ReplicaWrapper rw) {
+    ReplicaWrapper old = _replicaWrapperMap.put(rw.replica(), rw);
+    if (old != null) {
+      _sortedReplicas.remove(old);
+    }
+    _sortedReplicas.add(rw);
+  }
+
+  public void add(Replica replica) {
+    double score = _scoreFunction.apply(replica);
+    ReplicaWrapper rw = new ReplicaWrapper(replica, score);
+    add(rw);
+  }
+
+  public ReplicaWrapper remove(Replica replica) {
+    ReplicaWrapper rw = _replicaWrapperMap.remove(replica);
+    _sortedReplicas.remove(rw);
+    return rw;
+  }
+
+  ReplicaWrapper get(Replica replica) {
+    return _replicaWrapperMap.get(replica);
+  }
+
+  Map<Replica, ReplicaWrapper> replicaWrapperMap() {
+    return _replicaWrapperMap;
   }
 
   @Override

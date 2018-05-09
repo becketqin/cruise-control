@@ -54,14 +54,6 @@ public class LeaderBytesInDistributionGoal extends AbstractGoal {
   }
 
   /**
-   * @deprecated Please use {@link this#actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
-
-  /**
    * An action is acceptable if it does not move the leader bytes in above the threshold for leader bytes in.
    *
    * @param action Action to be checked for acceptance.
@@ -77,7 +69,7 @@ public class LeaderBytesInDistributionGoal extends AbstractGoal {
     initMeanLeaderBytesIn(clusterModel);
 
     if (!sourceReplica.isLeader()) {
-      switch (action.balancingAction()) {
+      switch (action.actionType()) {
         case REPLICA_SWAP:
           if (!destinationBroker.replica(action.destinationTopicPartition()).isLeader()) {
             // No leadership bytes are being swapped between source and destination.
@@ -90,14 +82,14 @@ public class LeaderBytesInDistributionGoal extends AbstractGoal {
         case LEADERSHIP_MOVEMENT:
           throw new IllegalStateException("Attempt to move leadership from the follower.");
         default:
-          throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+          throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
       }
     }
 
     double sourceReplicaUtilization = sourceReplica.load().expectedUtilizationFor(Resource.NW_IN);
     double newDestLeaderBytesIn;
 
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case REPLICA_SWAP:
         double destinationReplicaUtilization = destinationBroker.replica(action.destinationTopicPartition()).load()
             .expectedUtilizationFor(Resource.NW_IN);
@@ -118,7 +110,7 @@ public class LeaderBytesInDistributionGoal extends AbstractGoal {
                                + sourceReplicaUtilization;
         break;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
 
     return !(newDestLeaderBytesIn > balanceThreshold(clusterModel, destinationBroker.id())) ? ACCEPT : REPLICA_REJECT;
@@ -156,15 +148,15 @@ public class LeaderBytesInDistributionGoal extends AbstractGoal {
 
   @Override
   protected boolean selfSatisfied(ClusterModel clusterModel, BalancingAction action) {
-    if (action.balancingAction() != ActionType.LEADERSHIP_MOVEMENT) {
-      throw new IllegalStateException("Found balancing action " + action.balancingAction() +
+    if (action.actionType() != ActionType.LEADERSHIP_MOVEMENT) {
+      throw new IllegalStateException("Found balancing action " + action.actionType() +
           " but expected leadership movement.");
     }
     return actionAcceptance(action, clusterModel) == ACCEPT;
   }
 
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics) {
     // While proposals exclude the excludedTopics, the leader bytes in still considers replicas of the excludedTopics.
     _meanLeaderBytesIn = 0.0;
     _overLimitBrokerIds = new HashSet<>();

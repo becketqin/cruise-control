@@ -5,12 +5,21 @@
 
 package com.linkedin.kafka.cruisecontrol.analyzer.goals;
 
+import com.linkedin.kafka.cruisecontrol.analyzer.ActionType;
 import com.linkedin.kafka.cruisecontrol.common.Resource;
 import com.linkedin.kafka.cruisecontrol.analyzer.BalancingConstraint;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+import static com.linkedin.kafka.cruisecontrol.analyzer.ActionType.LEADERSHIP_MOVEMENT;
+import static com.linkedin.kafka.cruisecontrol.analyzer.ActionType.REPLICA_MOVEMENT;
+import static com.linkedin.kafka.cruisecontrol.analyzer.ActionType.REPLICA_SWAP;
 
 
 public class NetworkOutboundUsageDistributionGoal extends ResourceDistributionGoal {
-
+  private final Set<ActionType> _actionTypes =
+      new HashSet<>(Arrays.asList(LEADERSHIP_MOVEMENT, REPLICA_MOVEMENT, REPLICA_SWAP));
   /**
    * Constructor for Resource Distribution Goal.
    */
@@ -33,5 +42,10 @@ public class NetworkOutboundUsageDistributionGoal extends ResourceDistributionGo
   @Override
   public String name() {
     return NetworkOutboundUsageDistributionGoal.class.getSimpleName();
+  }
+
+  @Override
+  protected Set<ActionType> possibleActionTypes() {
+    return _actionTypes;
   }
 }

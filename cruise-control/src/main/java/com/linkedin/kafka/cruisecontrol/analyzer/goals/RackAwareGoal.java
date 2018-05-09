@@ -55,13 +55,6 @@ public class RackAwareGoal extends AbstractGoal {
     _balancingConstraint = constraint;
   }
 
-  /**
-   * @deprecated Please use {@link this#actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
 
   /**
    * Check whether given action is acceptable by this goal. An action is acceptable by a goal if it satisfies
@@ -75,7 +68,7 @@ public class RackAwareGoal extends AbstractGoal {
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case LEADERSHIP_MOVEMENT:
         return ACCEPT;
       case REPLICA_MOVEMENT:
@@ -86,7 +79,7 @@ public class RackAwareGoal extends AbstractGoal {
           return BROKER_REJECT;
         }
 
-        if (action.balancingAction() == ActionType.REPLICA_SWAP
+        if (action.actionType() == ActionType.REPLICA_SWAP
             && isReplicaMoveViolateRackAwareness(clusterModel,
                                                  c -> c.broker(action.destinationBrokerId()).replica(action.destinationTopicPartition()),
                                                  c -> c.broker(action.sourceBrokerId()))) {
@@ -94,7 +87,7 @@ public class RackAwareGoal extends AbstractGoal {
         }
         return ACCEPT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -171,7 +164,8 @@ public class RackAwareGoal extends AbstractGoal {
    * @param excludedTopics The topics that should be excluded from the optimization proposals.
    */
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) throws OptimizationFailureException {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics)
+      throws OptimizationFailureException {
     // Sanity Check: not enough racks to satisfy rack awareness.
     int numHealthyRacks = clusterModel.numHealthyRacks();
     if (!excludedTopics.isEmpty()) {

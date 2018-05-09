@@ -60,14 +60,6 @@ public class PotentialNwOutGoal extends AbstractGoal {
   }
 
   /**
-   * @deprecated Please use {@link this#actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
-
-  /**
    * Check whether given action is acceptable by this goal. Action is acceptable by this goal if it satisfies
    * either of the following:
    * (1) it is a leadership movement,
@@ -80,7 +72,7 @@ public class PotentialNwOutGoal extends AbstractGoal {
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case LEADERSHIP_MOVEMENT:
         // it is a leadership movement,
         return ACCEPT;
@@ -88,7 +80,7 @@ public class PotentialNwOutGoal extends AbstractGoal {
       case REPLICA_MOVEMENT:
         return isReplicaRelocationAcceptable(action, clusterModel);
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -119,7 +111,7 @@ public class PotentialNwOutGoal extends AbstractGoal {
     double sourceReplicaUtilization = clusterModel.partition(replica.topicPartition()).leader().load().expectedUtilizationFor(Resource.NW_OUT);
     double maxUtilization = Math.max(destinationBrokerUtilization, sourceBrokerUtilization);
 
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case REPLICA_SWAP:
         double destinationReplicaUtilization = clusterModel.partition(action.destinationTopicPartition())
             .leader().load().expectedUtilizationFor(Resource.NW_OUT);
@@ -132,7 +124,7 @@ public class PotentialNwOutGoal extends AbstractGoal {
       case REPLICA_MOVEMENT:
         return destinationBrokerUtilization + sourceReplicaUtilization <= maxUtilization ? ACCEPT : REPLICA_REJECT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -181,7 +173,7 @@ public class PotentialNwOutGoal extends AbstractGoal {
   @Override
   protected boolean selfSatisfied(ClusterModel clusterModel, BalancingAction action) {
     Replica sourceReplica = clusterModel.broker(action.sourceBrokerId()).replica(action.topicPartition());
-    ActionType actionType = action.balancingAction();
+    ActionType actionType = action.actionType();
     Broker sourceBroker = sourceReplica.broker();
     // If the source broker is dead and currently self healing dead brokers only, then the action must be executed.
     if (!sourceBroker.isAlive() && _selfHealingDeadBrokersOnly && actionType != ActionType.REPLICA_SWAP) {
@@ -220,7 +212,7 @@ public class PotentialNwOutGoal extends AbstractGoal {
    * @param excludedTopics The topics that should be excluded from the optimization proposals.
    */
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics) {
     // While proposals exclude the excludedTopics, the potential nw_out still considers replicas of the excludedTopics.
     _selfHealingDeadBrokersOnly = false;
   }

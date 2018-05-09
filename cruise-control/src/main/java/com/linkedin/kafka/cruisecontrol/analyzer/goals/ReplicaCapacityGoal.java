@@ -55,14 +55,6 @@ public class ReplicaCapacityGoal extends AbstractGoal {
   }
 
   /**
-   * @deprecated Please use {@link this#actionAcceptance(BalancingAction, ClusterModel)} instead.
-   */
-  @Override
-  public boolean isActionAcceptable(BalancingAction action, ClusterModel clusterModel) {
-    return actionAcceptance(action, clusterModel) == ACCEPT;
-  }
-
-  /**
    * Check whether given action is acceptable by this goal. An action is acceptable by a goal if it satisfies
    * requirements of the goal. Requirements(hard goal): replica capacity goal.
    *
@@ -73,7 +65,7 @@ public class ReplicaCapacityGoal extends AbstractGoal {
    */
   @Override
   public ActionAcceptance actionAcceptance(BalancingAction action, ClusterModel clusterModel) {
-    switch (action.balancingAction()) {
+    switch (action.actionType()) {
       case REPLICA_MOVEMENT:
       case REPLICA_ADDITION:
         Broker destinationBroker = clusterModel.broker(action.destinationBrokerId());
@@ -83,7 +75,7 @@ public class ReplicaCapacityGoal extends AbstractGoal {
       case REPLICA_DELETION:
         return ACCEPT;
       default:
-        throw new IllegalArgumentException("Unsupported balancing action " + action.balancingAction() + " is provided.");
+        throw new IllegalArgumentException("Unsupported balancing action " + action.actionType() + " is provided.");
     }
   }
 
@@ -123,7 +115,8 @@ public class ReplicaCapacityGoal extends AbstractGoal {
    * @param excludedTopics The topics that should be excluded from the optimization proposals.
    */
   @Override
-  protected void initGoalState(ClusterModel clusterModel, Set<String> excludedTopics) throws OptimizationFailureException {
+  protected void initGoalState(ClusterModel clusterModel, Set<Goal> optimizedGoals, Set<String> excludedTopics)
+      throws OptimizationFailureException {
     List<String> topicsToRebalance = new ArrayList<>(clusterModel.topics());
     topicsToRebalance.removeAll(excludedTopics);
     if (topicsToRebalance.isEmpty()) {
