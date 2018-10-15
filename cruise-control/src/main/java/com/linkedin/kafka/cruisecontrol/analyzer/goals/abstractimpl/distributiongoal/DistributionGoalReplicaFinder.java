@@ -117,6 +117,13 @@ public abstract class DistributionGoalReplicaFinder implements ReplicaFinder {
    */
   abstract Broker brokerToSearch();
 
+  /**
+   * @return The target value for broker to optimize.
+   */
+  protected double targetValueForBrokerToOptimize() {
+    return _targetValueForBrokerToOptimize;
+  }
+
   @Override
   public NavigableSet<ReplicaWrapper> replicasToSearch() {
     int brokerId = brokerToSearch().id();
@@ -165,10 +172,10 @@ public abstract class DistributionGoalReplicaFinder implements ReplicaFinder {
       // The replica is acceptable to both broker to optimize and broker to balance with. Looking for a more suitable one.
       if (searchingInBrokerToOptimize) {
         // Searching in the broker to optimize, just compare the estimation to the target broker value.
-        return Double.compare(brokerToOptimizeValueAfterAction, _targetValueForBrokerToOptimize);
+        return Double.compare(brokerToOptimizeValueAfterAction, targetValueForBrokerToOptimize());
       } else {
         // Searching in the broker to balance with, compare the target broker value to the estimation.
-        return Double.compare(_targetValueForBrokerToOptimize, brokerToOptimizeValueAfterAction);
+        return Double.compare(targetValueForBrokerToOptimize(), brokerToOptimizeValueAfterAction);
       }
     }
   }
@@ -192,7 +199,7 @@ public abstract class DistributionGoalReplicaFinder implements ReplicaFinder {
     } else if (value2 == null) {
       return r1;
     } else {
-      return Math.abs(value1 - _targetValueForBrokerToOptimize) < Math.abs(value2 - _targetValueForBrokerToOptimize) ?
+      return Math.abs(value1 - targetValueForBrokerToOptimize()) < Math.abs(value2 - targetValueForBrokerToOptimize()) ?
           r1 : r2;
     }
   }

@@ -445,12 +445,37 @@ public abstract class MetricDistributionGoal extends AbstractGoal implements Dis
     return brokersUnderLowerThreshold.isEmpty() && brokersAboveUpperThreshold.isEmpty();
   }
 
-//  void removeIneligibleReplicas(BalancingAction balancingAction,
-//                                Collection<ReplicaWrapper> candidates) {
-//    if (balancingAction.topicPartition() == PLACE_HOLDER_PARTITION) {
-//
-//    }
-//  }
+  void removeIneligibleReplicas(BalancingAction balancingAction, Collection<ReplicaWrapper> candidates) {
+    Broker srcBroker = _clusterModel.broker(balancingAction.sourceBrokerId());
+    Broker destBroker = _clusterModel.broker(balancingAction.destinationBrokerId());
+
+    ReplicaFinder upperBoundaryFinder = new BoundaryReplicaFinder(srcBroker,
+                                                                  destBroker,
+                                                                  sortName(),
+                                                                  balancingAction,
+                                                                  BoundaryReplicaFinder.BoundaryType.UPPER,
+                                                                  metricValue(srcBroker),
+                                                                  metricValue(destBroker),
+                                                                  this);
+    ReplicaSearchResult upperBoundResult = ReplicaSearchAlgorithm.searchForReplica(upperBoundaryFinder);
+    ReplicaFinder lowerBoundaryFinder = new BoundaryReplicaFinder(srcBroker,
+                                                                  destBroker,
+                                                                  sortName(),
+                                                                  balancingAction,
+                                                                  BoundaryReplicaFinder.BoundaryType.LOWER,
+                                                                  metricValue(srcBroker),
+                                                                  metricValue(destBroker),
+                                                                  this);
+    ReplicaSearchResult lowerBoundResult = ReplicaSearchAlgorithm.searchForReplica(lowerBoundaryFinder);
+
+    Broker brokerToSearch = balancingAction.topicPartition() == PLACE_HOLDER_PARTITION ? srcBroker : destBroker;
+    NavigableSet<ReplicaWrapper> eligibleReplicas =
+        brokerToSearch.trackedSortedReplicas(sortName())
+                      .sortedReplicas()
+                      .headSet(upperBoundResult.replicaWrapper(), false)
+                      .tailSet(lowerBoundResult.replicaWrapper(), false);
+    candidates.retainAll(eligibleReplicas);
+  }
 
   /**
    * Balance between two brokers.
